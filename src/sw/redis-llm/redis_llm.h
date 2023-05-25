@@ -26,6 +26,12 @@ class RedisLlm {
 public:
     static RedisLlm& instance();
 
+    RedisLlm(const RedisLlm &) = delete;
+    RedisLlm& operator=(const RedisLlm &) = delete;
+
+    RedisLlm(RedisLlm &&) = delete;
+    RedisLlm& operator=(RedisLlm &&) = delete;
+
     void load(RedisModuleCtx *ctx, RedisModuleString **argv, int argc);
 
     int module_version() const {
@@ -52,6 +58,14 @@ public:
         return _options;
     }
 
+    LlmModelFactory& llm_factory() {
+        return _llm_factory;
+    }
+
+    EmbeddingModelFactory& embedding_factory() {
+        return _embedding_factory;
+    }
+
 private:
     RedisLlm() = default;
 
@@ -74,6 +88,10 @@ private:
     RedisModuleType *_module_type = nullptr;
 
     Options _options;
+
+    LlmModelFactory _llm_factory;
+
+    LlmModelFactory _embedding_factory;
 };
 
 }

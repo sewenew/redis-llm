@@ -30,7 +30,24 @@ namespace util {
 
 std::string_view to_sv(RedisModuleString *str);
 
+std::vector<std::string_view> to_sv(RedisModuleString **argv, int argc);
+
 bool str_case_equal(const std::string_view &s1, const std::string_view &s2);
+
+template <typename Func>
+int run_command(Func &&func, RedisModelCtx *ctx, RedisModuleString **argv, int argc) {
+    try {
+        return func(ctx, argv, argc);
+    } catch (const WrongArityError &err) {
+        return RedisModule_WrongArity(ctx);
+    } catch (const Error &err) {
+        return api::reply_with_error(ctx, err);
+    }
+
+    return REDISMODULE_ERR;
+}
+
+const std::string_view& option_value(const std::vector<std::string_view> &args, std::size_t &index);
 
 int32_t sv_to_int32(const StringView &sv);
 

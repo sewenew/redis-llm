@@ -42,6 +42,18 @@ std::string_view to_sv(RedisModuleString *str) {
     return {data, len};
 }
 
+std::vector<std::string_view> to_sv(RedisModuleString **argv, int argc) {
+    assert(argv != nullptr && argc >= 0);
+
+    std::vector<std::string_view> args;
+    args.reserve(argc);
+    for (auto idx = 0; idx < argc; ++idx) {
+        args.push_back(to_sv(argv[idx]));
+    }
+
+    return args;
+}
+
 bool str_case_equal(const std::string_view &s1, const std::string_view &s2) {
     if (s1.size() != s2.size()) {
         return false;
@@ -57,6 +69,17 @@ bool str_case_equal(const std::string_view &s1, const std::string_view &s2) {
     }
 
     return true;
+}
+
+const std::string_view& option_value(const std::vector<std::string_view> &args,
+        std::size_t &index) {
+    if (index + 1 >= args.size()) {
+        throw Error("syntax error");
+    }
+
+    ++index;
+
+    return args[index];
 }
 
 int32_t sv_to_int32(const StringView &sv) {
