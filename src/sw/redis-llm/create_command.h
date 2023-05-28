@@ -19,6 +19,7 @@
 
 #include "nlohmann/json.hpp"
 #include "sw/redis-llm/module_api.h"
+#include "sw/redis-llm/command.h"
 
 namespace sw::redis::llm {
 
@@ -26,7 +27,7 @@ class CreateCommand : public Command {
 private:
     virtual void _run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const override;
 
-    struct Options {
+    struct Args {
         enum class Opt {
             NX = 0,
             XX,
@@ -39,12 +40,12 @@ private:
 
         nlohmann::json llm_config;
 
-        nlohmann::json embedding_config;
+        nlohmann::json embedding_config = nlohmann::json::object();
 
-        nlohmann::json vector_store_config;
+        nlohmann::json vector_store_config = nlohmann::json::object();
     };
 
-    Options _parse_options(RedisModuleString **argv, int argc) const;
+    Args _parse_args(RedisModuleString **argv, int argc) const;
 
     nlohmann::json _parse_config(RedisModuleString *str) const;
 

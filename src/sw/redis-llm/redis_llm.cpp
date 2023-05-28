@@ -17,10 +17,14 @@
 #include "sw/redis-llm/redis_llm.h"
 #include <cassert>
 #include <string>
+#include "sw/redis-llm/application.h"
+#include "sw/redis-llm/command.h"
 #include "sw/redis-llm/errors.h"
-#include "sw/redis-llm/commands.h"
+#include "nlohmann/json.hpp"
 
 namespace {
+
+using namespace sw::redis::llm;
 
 struct StringDeleter {
     void operator()(char *str) const {
@@ -39,9 +43,21 @@ struct RDBString {
 
 RDBString rdb_load_string(RedisModuleIO *rdb);
 
-std::pair<RDBString, RDBString> rdb_load_value(RedisModuleIO *rdb);
+uint64_t rdb_load_number(RedisModuleIO *rdb);
 
-std::pair<std::string, std::string> serialize_message(void *value);
+Application* rdb_load_application(RedisModuleIO *rdb);
+
+void rdb_save_string(RedisModuleIO *rdb, const std::string_view &str);
+
+void rdb_save_number(RedisModuleIO *rdb, uint64_t num);
+
+void rdb_save_vector(RedisModuleIO *rdb, const Vector &vec);
+
+void rdb_save_application(RedisModuleIO *rdb, Application &app);
+
+void rewrite_conf(RedisModuleIO *aof, RedisModuleString *key, const nlohmann::json &conf);
+
+void rewrite_data(RedisModuleIO *aof, RedisModuleString *key, Application &app);
 
 }
 
@@ -96,26 +112,7 @@ void* RedisLlm::_rdb_load(RedisModuleIO *rdb, int encver) {
             throw Error("cannot load data of version: " + std::to_string(encver));
         }
 
-        RDBString type_str;
-        RDBString data_str;
-        std::tie(type_str, data_str) = rdb_load_value(rdb);
-
-        auto type = std::string(type_str.str.get(), type_str.len);
-
-        auto *factory = m.proto_factory();
-
-        assert(factory != nullptr);
-
-        auto msg = factory->create(type);
-        if (!msg) {
-            throw Error("unknown protobuf type: " + type);
-        }
-
-        if (!msg->ParseFromArray(data_str.str.get(), data_str.len)) {
-            throw Error("failed to parse protobuf of type: " + type);
-        }
-
-        return msg.release();
+        return rdb_load_application(rdb);
     } catch (const Error &e) {
         RedisModule_LogIOError(rdb, "warning", e.what());
         return nullptr;
@@ -126,13 +123,13 @@ void RedisLlm::_rdb_save(RedisModuleIO *rdb, void *value) {
     try {
         assert(rdb != nullptr);
 
-        std::string type;
-        std::string buf;
-        std::tie(type, buf) = serialize_message(value);
+        if (value == nullptr) {
+            throw Error("null value to save");
+        }
 
-        RedisModule_SaveStringBuffer(rdb, type.data(), type.size());
+        auto *app = static_cast<Application *>(value);
 
-        RedisModule_SaveStringBuffer(rdb, buf.data(), buf.size());
+        rdb_save_application(rdb, *app);
     } catch (const Error &e) {
         RedisModule_LogIOError(rdb, "warning", e.what());
     }
@@ -142,22 +139,15 @@ void RedisLlm::_aof_rewrite(RedisModuleIO *aof, RedisModuleString *key, void *va
     try {
         assert(aof != nullptr);
 
-        if (key == nullptr) {
-            throw Error("null key to rewrite aof");
+        if (key == nullptr || value == nullptr) {
+            throw Error("null key or value to rewrite aof");
         }
 
-        std::string type;
-        std::string buf;
-        std::tie(type, buf) = serialize_message(value);
+        auto *app = static_cast<Application *>(value);
+        rewrite_conf(aof, key, app->conf());
 
-        RedisModule_EmitAOF(aof,
-                "PB.SET",
-                "sbb",
-                key,
-                type.data(),
-                type.size(),
-                buf.data(),
-                buf.size());
+        rewrite_data(aof, key, *app);
+
     } catch (const Error &e) {
         RedisModule_LogIOError(aof, "warning", e.what());
     }
@@ -165,8 +155,8 @@ void RedisLlm::_aof_rewrite(RedisModuleIO *aof, RedisModuleString *key, void *va
 
 void RedisLlm::_free_msg(void *value) {
     if (value != nullptr) {
-        auto *msg = static_cast<google::protobuf::Message *>(value);
-        delete msg;
+        auto *app = static_cast<Application *>(value);
+        delete app;
     }
 }
 
@@ -174,7 +164,11 @@ void RedisLlm::_free_msg(void *value) {
 
 namespace {
 
-using sw::redis::llm::Error;
+using namespace sw::redis::llm;
+
+std::string_view to_sv(RDBString rdb_str) {
+    return {rdb_str.str.get(), rdb_str.len};
+}
 
 RDBString rdb_load_string(RedisModuleIO *rdb) {
     std::size_t len = 0;
@@ -186,29 +180,180 @@ RDBString rdb_load_string(RedisModuleIO *rdb) {
     return {StringUPtr(buf), len};
 }
 
-std::pair<RDBString, RDBString> rdb_load_value(RedisModuleIO *rdb) {
-    auto type = rdb_load_string(rdb);
-
-    auto data = rdb_load_string(rdb);
-
-    return {std::move(type), std::move(data)};
+uint64_t rdb_load_number(RedisModuleIO *rdb) {
+    return RedisModule_LoadUnsigned(rdb);
 }
 
-std::pair<std::string, std::string> serialize_message(void *value) {
-    if (value == nullptr) {
-        throw Error("Null value to serialize");
+Vector rdb_load_vector(RedisModuleIO *rdb, uint64_t dim) {
+    Vector vec;
+    vec.reserve(dim);
+    for (auto idx = 0UL; idx < dim; ++idx) {
+        vec.push_back(RedisModule_LoadFloat(rdb));
     }
 
-    auto *msg = static_cast<google::protobuf::Message*>(value);
+    return vec;
+}
 
-    auto type = msg->GetTypeName();
-
-    std::string buf;
-    if (!msg->SerializeToString(&buf)) {
-        throw Error("failed to serialize protobuf message of type " + type);
+nlohmann::json rdb_load_config(RedisModuleIO *rdb) {
+    auto config = rdb_load_string(rdb);
+    nlohmann::json conf;
+    try {
+        auto beg = config.str.get();
+        auto end = beg + config.len;
+        conf = nlohmann::json::parse(beg, end);
+    } catch (const nlohmann::json::exception &e) {
+        throw Error("failed parse config");
     }
 
-    return {std::move(type), std::move(buf)};
+    return conf;
+}
+
+void rdb_save_config(RedisModuleIO *rdb, const nlohmann::json &conf) {
+    std::string config;
+    try {
+        config = conf.dump();
+    } catch (const nlohmann::json::exception &e) {
+        throw Error("failed to dump config");
+    }
+
+    RedisModule_SaveStringBuffer(rdb, config.data(), config.size());
+}
+
+void rdb_save_number(RedisModuleIO *rdb, uint64_t num) {
+    RedisModule_SaveUnsigned(rdb, num);
+}
+
+void rdb_save_string(RedisModuleIO *rdb, const std::string_view &str) {
+    RedisModule_SaveStringBuffer(rdb, str.data(), str.size());
+}
+
+void rdb_save_vector(RedisModuleIO *rdb, const Vector &vec) {
+    for (auto ele : vec) {
+        RedisModule_SaveFloat(rdb, ele);
+    }
+}
+
+void rdb_save_data_store(RedisModuleIO *rdb, Application &app) {
+    const auto &data_store = app.data_store();
+    auto &vector_store = app.vector_store();
+    rdb_save_number(rdb, data_store.size());
+    rdb_save_number(rdb, app.dim());
+
+    for (auto &[id, data] : data_store) {
+        rdb_save_number(rdb, id);
+        rdb_save_string(rdb, data);
+
+        auto vec = vector_store.get(id);
+        // TODO: is it possible that vec is nullopt?
+        rdb_save_vector(rdb, *vec);
+    }
+}
+
+void rdb_save_application(RedisModuleIO *rdb, Application &app) {
+    rdb_save_config(rdb, app.conf());
+
+    rdb_save_data_store(rdb, app);
+}
+
+auto parse_config(const nlohmann::json &config) ->
+    std::tuple<nlohmann::json, nlohmann::json, nlohmann::json > {
+    auto iter = config.find("llm");
+    if (iter == config.end()) {
+        throw Error("no llm config");
+    }
+    auto llm_config = iter.value();
+
+    nlohmann::json embedding_config;
+    iter = config.find("embedding");
+    if (iter != config.end()) {
+        embedding_config = iter.value();
+    }
+
+    nlohmann::json vector_store_config;
+    iter = config.find("vector_store");
+    if (iter != config.end()) {
+        vector_store_config = iter.value();
+    }
+
+    return {std::move(llm_config), std::move(embedding_config), std::move(vector_store_config)};
+}
+
+auto rdb_load_data_store(RedisModuleIO *rdb) ->
+    std::unordered_map<uint64_t, std::pair<std::string, Vector>> {
+    std::unordered_map<uint64_t, std::pair<std::string, Vector>> data_store;
+    auto size = rdb_load_number(rdb);
+    auto dim = rdb_load_number(rdb);
+    for (auto idx = 0UL; idx < size; ++idx) {
+        auto id = rdb_load_number(rdb);
+        auto val = to_sv(rdb_load_string(rdb));
+        auto vec = rdb_load_vector(rdb, dim);
+        data_store.emplace(id, std::make_pair(val, std::move(vec)));
+    }
+
+    return data_store;
+}
+
+Application* rdb_load_application(RedisModuleIO *rdb) {
+    auto config = rdb_load_config(rdb);
+    auto [llm_config, embedding_config, vector_store_config] = parse_config(config);
+
+    auto data_store = rdb_load_data_store(rdb);
+
+    return new Application(llm_config,
+            embedding_config,
+            vector_store_config,
+            std::move(data_store));
+}
+
+void rewrite_conf(RedisModuleIO *aof, RedisModuleString *key, const nlohmann::json &conf) {
+    auto llm_config = conf.at("llm").dump();
+    auto embedding_config = conf.at("embedding").dump();
+    auto vector_store_config = conf.at("vector_store").dump();
+
+    RedisModule_EmitAOF(aof,
+            "LLM.CREATE",
+            "scbcbcb",
+            key,
+            "--LLM",
+            llm_config.data(),
+            llm_config.size(),
+            "--EMBEDDING",
+            embedding_config.data(),
+            embedding_config.size(),
+            "--VECTOR_STORE",
+            vector_store_config.data(),
+            vector_store_config.size());
+}
+
+void rewrite_data(RedisModuleIO *aof, RedisModuleString *key, Application &app) {
+    const auto &data_store = app.data_store();
+    for (auto &[id, data] : data_store) {
+        auto vec = app.embedding(id);
+        if (!vec) {
+            // TODO: this should not happen
+            continue;
+        }
+        std::string embedding;
+        for (auto ele : *vec) {
+            if (!embedding.empty()) {
+                embedding += ",";
+            }
+            embedding += std::to_string(ele);
+        }
+        auto id_str = std::to_string(id);
+
+        RedisModule_EmitAOF(aof,
+                "LLM.ADD",
+                "scbbb",
+                key,
+                "--WITHEMBEDDING",
+                id_str.data(),
+                id_str.size(),
+                data.data(),
+                data.size(),
+                embedding.data(),
+                embedding.size());
+    }
 }
 
 }

@@ -26,6 +26,8 @@
 
 namespace sw::redis::llm {
 
+using Vector = std::vector<float>;
+
 namespace util {
 
 std::string_view to_sv(RedisModuleString *str);
@@ -35,7 +37,7 @@ std::vector<std::string_view> to_sv(RedisModuleString **argv, int argc);
 bool str_case_equal(const std::string_view &s1, const std::string_view &s2);
 
 template <typename Func>
-int run_command(Func &&func, RedisModelCtx *ctx, RedisModuleString **argv, int argc) {
+int run_command(Func &&func, RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     try {
         return func(ctx, argv, argc);
     } catch (const WrongArityError &err) {
@@ -47,23 +49,30 @@ int run_command(Func &&func, RedisModelCtx *ctx, RedisModuleString **argv, int a
     return REDISMODULE_ERR;
 }
 
-const std::string_view& option_value(const std::vector<std::string_view> &args, std::size_t &index);
+template <typename Iter>
+void split(const std::string_view &str, const std::string &delimiter, Iter result) {
+    if (str.empty()) {
+        return;
+    }
+    if (delimiter.empty()) {
+        throw std::runtime_error("delimiter must be not empty");
+    }
 
-int32_t sv_to_int32(const StringView &sv);
+    std::string::size_type pos = 0;
+    std::string::size_type idx = 0;
+    while (true) {
+        pos = str.find(delimiter, idx);
+        if (pos == std::string::npos) {
+            *result = str.substr(idx);
+            ++result;
+            break;
+        }
 
-int64_t sv_to_int64(const StringView &sv);
-
-uint32_t sv_to_uint32(const StringView &sv);
-
-uint64_t sv_to_uint64(const StringView &sv);
-
-double sv_to_double(const StringView &sv);
-
-float sv_to_float(const StringView &sv);
-
-bool sv_to_bool(const StringView &sv);
-
-std::string sv_to_string(const StringView &sv);
+        *result = str.substr(idx, pos - idx);
+        ++result;
+        idx = pos + delimiter.size();
+    }
+}
 
 }
 
@@ -78,10 +87,6 @@ std::vector<std::string> list_dir(const std::string &path);
 std::string extension(const std::string &file);
 
 void remove_file(const std::string &path);
-
-}
-
-}
 
 }
 

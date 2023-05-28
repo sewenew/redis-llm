@@ -15,17 +15,43 @@
  *************************************************************************/
 
 #include "sw/redis-llm/openai.h"
+#include "sw/redis-llm/errors.h"
 
 namespace sw::redis::llm {
 
-OpenAi::OpenAi(const nlohmann::json &conf) : _opts(_parse_args(args)) {}
+OpenAi::OpenAi(const nlohmann::json &conf) :
+    LlmModel(conf),
+    _opts(_parse_options(conf)),
+    _cli(_make_client(_opts)) {}
 
-std::vector<float> OpenAi::embedding(const std::string_view &/*input*/) {
-    return {};
+std::string OpenAi::predict(const std::string_view &input) {
+    nlohmann::json req;
+    req["model"] = _opts.model;
+    req["messages"] = nlohmann::json::array();
+    nlohmann::json msg;
+    msg["role"] = "user";
+    msg["content"] = input;
+    req["messages"].push_back(std::move(msg));
+    auto res = _cli->Post("/v1/chat/completions", req.dump(), "application/json");
+    if (!res || res->status != 200) {
+        throw Error("failed to request openai");
+    }
+
+    auto ans = nlohmann::json::parse(res->body);
+    return ans["choices"][0]["message"]["content"].get<std::string>();
 }
 
-std::string OpenAi::predict(const std::string &input) {
-    return input;
+std::vector<float> OpenAi::embedding(const std::string_view &input) {
+    nlohmann::json req;
+    req["input"] = input;
+    req["model"] = _opts.model;
+    auto res = _cli->Post("/v1/embeddings", req.dump(), "application/json");
+    if (!res || res->status != 200) {
+        throw Error("failed to request openai embedding");
+    }
+
+    auto ans = nlohmann::json::parse(res->body);
+    return ans["data"][0]["embedding"].get<std::vector<float>>();
 }
 
 OpenAi::Options OpenAi::_parse_options(const nlohmann::json &conf) const {
@@ -37,7 +63,15 @@ OpenAi::Options OpenAi::_parse_options(const nlohmann::json &conf) const {
         throw Error(std::string("failed to parse openai options: ") + e.what());
     }
 
-    return _opts;
+    return opts;
+}
+
+std::unique_ptr<httplib::Client> OpenAi::_make_client(const Options &opts) const {
+    auto cli = std::make_unique<httplib::Client>("https://api.openai.com");
+    cli->set_follow_location(true);
+    cli->set_bearer_token_auth(opts.api_key);
+
+    return cli;
 }
 
 }

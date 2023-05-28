@@ -15,20 +15,36 @@
  *************************************************************************/
 
 #include "sw/redis-llm/embedding_model.h"
+#include <cassert>
 #include "sw/redis-llm/errors.h"
+#include "sw/redis-llm/openai_embedding.h"
 
 namespace sw::redis::llm {
 
-EmbeddingModelFactory::EmbeddingModelFactory() {
+std::string EmbeddingModel::type() const {
+    try {
+        return _conf.at("type").get<std::string>();
+    } catch (const nlohmann::json::exception &) {
+        throw Error("no type field");
+    }
+
+    assert(false);
+
+    return "";
 }
 
-EmbeddingModelUPtr EmbeddingModelFactory::create(const std::string_view &type, const std::vector<std::string_view> &args) const {
+EmbeddingModelFactory::EmbeddingModelFactory() {
+    _register("openai", std::make_unique<EmbeddingModelCreatorTpl<OpenAiEmbedding>>());
+}
+
+EmbeddingModelUPtr EmbeddingModelFactory::create(const nlohmann::json &conf) const {
+    auto type = conf.at("type").get<std::string>();
     auto iter = _creators.find(type);
     if (iter == _creators.end()) {
         throw Error(std::string("unknown embedding model: ") + type);
     }
 
-    return iter->second->create(args);
+    return iter->second->create(conf);
 }
 
 void EmbeddingModelFactory::_register(const std::string &type, EmbeddingModelCreatorUPtr creator) {

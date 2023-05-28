@@ -14,41 +14,25 @@
    limitations under the License.
  *************************************************************************/
 
-#ifndef SEWENEW_REDIS_LLM_OPENAI_H
-#define SEWENEW_REDIS_LLM_OPENAI_H
+#ifndef SEWENEW_REDIS_LLM_OPENAI_EMBEDDING_H
+#define SEWENEW_REDIS_LLM_OPENAI_EMBEDDING_H
 
 #include "nlohmann/json.hpp"
-#include "sw/redis-llm/llm_model.h"
-
-#define CPPHTTPLIB_OPENSSL_SUPPORT
-#include "httplib.h"
+#include "sw/redis-llm/embedding_model.h"
+#include "sw/redis-llm/openai.h"
 
 namespace sw::redis::llm {
 
-class OpenAi : public LlmModel {
+class OpenAiEmbedding : public EmbeddingModel {
 public:
-    explicit OpenAi(const nlohmann::json &conf);
+    explicit OpenAiEmbedding(const nlohmann::json &conf) : EmbeddingModel(conf), _open_ai(conf) {}
 
     virtual std::vector<float> embedding(const std::string_view &input) override;
 
-    virtual std::string predict(const std::string_view &input) override;
-
 private:
-    struct Options {
-        std::string api_key;
-
-        std::string model;
-    };
-
-    Options _parse_options(const nlohmann::json &conf) const;
-
-    std::unique_ptr<httplib::Client> _make_client(const Options &opts) const;
-
-    Options _opts;
-
-    std::unique_ptr<httplib::Client> _cli;
+    OpenAi _open_ai;
 };
 
 }
 
-#endif // end SEWENEW_REDIS_LLM_OPENAI_H
+#endif // end SEWENEW_REDIS_LLM_OPENAI_EMBEDDING_H

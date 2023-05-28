@@ -18,10 +18,12 @@
 #define SEWENEW_REDIS_LLM_VECTOR_STORE_H
 
 #include <cstdint>
+#include <optional>
+#include <unordered_map>
 #include <utility>
-#include <vector>
 #include "nlohmann/json.hpp"
 #include <hnswlib/hnswlib.h>
+#include "sw/redis-llm/utils.h"
 
 namespace sw::redis::llm {
 
@@ -33,7 +35,17 @@ public:
 
     void rem(uint64_t id);
 
+    std::optional<Vector> get(uint64_t id);
+
     std::vector<std::pair<uint64_t, float>> knn(const std::vector<float> &query, std::size_t k);
+
+    const nlohmann::json& conf() const {
+        return _conf;
+    }
+
+    std::size_t dim() const {
+        return _opts.dim;
+    }
 
 private:
     struct Options {
@@ -49,6 +61,8 @@ private:
 
     std::unique_ptr<hnswlib::SpaceInterface<float>> _space;
     std::unique_ptr<hnswlib::HierarchicalNSW<float>> _hnsw;
+
+    nlohmann::json _conf;
 };
 
 }

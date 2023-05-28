@@ -18,10 +18,10 @@
 
 namespace sw::redis::llm {
 
-VectorStore::VectorStore(const std::vector<std::string_view> &args) :
-    _opts(_parse_options(args)) {
+VectorStore::VectorStore(const nlohmann::json &conf) :
+    _opts(_parse_options(conf)), _conf(conf) {
     _space = std::make_unique<hnswlib::L2Space>(_opts.dim);
-    _hnsw = std::make_unique<hnswlib::HierarchicalNSW<float>>(_space.get(), _opts.max_elements, _opts.m, opts.ef_construction);
+    _hnsw = std::make_unique<hnswlib::HierarchicalNSW<float>>(_space.get(), _opts.max_elements, _opts.m, _opts.ef_construction);
 }
 
 void VectorStore::add(uint64_t id, const std::vector<float> &data) {
@@ -38,10 +38,20 @@ void VectorStore::add(uint64_t id, const std::vector<float> &data) {
 
 void VectorStore::rem(uint64_t id) {
     try {
-        _hnsw->unmarkDeleted(id);
+        _hnsw->markDelete(id);
     } catch (const std::exception &e) {
-        throw Error("failed to delete: " + std::to_string(id));
+        throw Error("failed to delete: " + std::to_string(id) + ", err: " + e.what());
     }
+}
+
+std::optional<Vector> VectorStore::get(uint64_t id) {
+    try {
+        return _hnsw->getDataByLabel<float>(id);
+    } catch (const std::exception &e) {
+        // Fall through
+    }
+
+    return std::nullopt;
 }
 
 std::vector<std::pair<uint64_t, float>> VectorStore::knn(const std::vector<float> &query, std::size_t k) {
@@ -50,7 +60,7 @@ std::vector<std::pair<uint64_t, float>> VectorStore::knn(const std::vector<float
         auto res = _hnsw->searchKnn(query.data(), k);
         while (!res.empty()) {
             auto &ele = res.top();
-            output.emplace(ele.second, ele.first);
+            output.emplace_back(ele.second, ele.first);
             res.pop();
         }
     } catch (const std::exception &e) {

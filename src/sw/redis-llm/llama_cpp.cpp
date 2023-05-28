@@ -15,24 +15,26 @@
  *************************************************************************/
 
 #include "sw/redis-llm/llama_cpp.h"
+#include "sw/redis-llm/errors.h"
 
 namespace sw::redis::llm {
 
-LlamaCpp::LlamaCpp(const std::vector<std::string_view> &args) :
-    LlmMode("llamacpp"),
-    _opts(_parse_args(args)) {}
+LlamaCpp::LlamaCpp(const nlohmann::json &conf) :
+    LlmModel(conf),
+    _opts(_parse_options(conf)) {}
 
 std::vector<float> LlamaCpp::embedding(const std::string_view &input) {
     return {};
 }
 
-std::string LlamaCpp::predict(const std::string &input) {
+std::string LlamaCpp::predict(const std::string_view &input) {
     return "";
 }
 
 LlamaCpp::Options LlamaCpp::_parse_options(const nlohmann::json &conf) const {
     Options opts;
     try {
+        opts.sub_type = conf.at("sub_type").get<std::string>();
     } catch (const nlohmann::json::exception &e) {
         throw Error(std::string("failed to parse llama options: ") + e.what());
     }

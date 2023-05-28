@@ -14,41 +14,32 @@
    limitations under the License.
  *************************************************************************/
 
-#ifndef SEWENEW_REDIS_LLM_OPENAI_H
-#define SEWENEW_REDIS_LLM_OPENAI_H
+#ifndef SEWENEW_REDIS_LLM_ASK_COMMAND_H
+#define SEWENEW_REDIS_LLM_ASK_COMMAND_H
 
-#include "nlohmann/json.hpp"
-#include "sw/redis-llm/llm_model.h"
-
-#define CPPHTTPLIB_OPENSSL_SUPPORT
-#include "httplib.h"
+#include "sw/redis-llm/module_api.h"
+#include "sw/redis-llm/command.h"
+#include "sw/redis-llm/utils.h"
 
 namespace sw::redis::llm {
 
-class OpenAi : public LlmModel {
-public:
-    explicit OpenAi(const nlohmann::json &conf);
-
-    virtual std::vector<float> embedding(const std::string_view &input) override;
-
-    virtual std::string predict(const std::string_view &input) override;
-
+class AskCommand : public Command {
 private:
-    struct Options {
-        std::string api_key;
+    virtual void _run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const override;
 
-        std::string model;
+    struct Args {
+        RedisModuleString *key_name = nullptr;
+
+        std::string_view question;
+
+        bool no_private_data = false;
     };
 
-    Options _parse_options(const nlohmann::json &conf) const;
+    Args _parse_args(RedisModuleString **argv, int argc) const;
 
-    std::unique_ptr<httplib::Client> _make_client(const Options &opts) const;
-
-    Options _opts;
-
-    std::unique_ptr<httplib::Client> _cli;
+    std::string _ask(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const;
 };
 
 }
 
-#endif // end SEWENEW_REDIS_LLM_OPENAI_H
+#endif // end SEWENEW_REDIS_LLM_ASK_COMMAND_H

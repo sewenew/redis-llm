@@ -18,6 +18,8 @@
 #define SEWENEW_REDIS_LLM_REDIS_LLM_H
 
 #include "sw/redis-llm/module_api.h"
+#include "sw/redis-llm/llm_model.h"
+#include "sw/redis-llm/embedding_model.h"
 #include "sw/redis-llm/options.h"
 
 namespace sw::redis::llm {
@@ -91,7 +93,7 @@ private:
 
     LlmModelFactory _llm_factory;
 
-    LlmModelFactory _embedding_factory;
+    EmbeddingModelFactory _embedding_factory;
 };
 
 }

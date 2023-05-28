@@ -14,15 +14,12 @@
    limitations under the License.
  *************************************************************************/
 
-#ifndef SEWENEW_REDIS_LLM_COMMANDS_H
-#define SEWENEW_REDIS_LLM_COMMANDS_H
+#include "openai_embedding.h"
 
-#include "sw/redis-llm/module_api.h"
+namespace sw::redis::llm {
 
-namespace sw::redis::llm::cmd {
-
-void create_commands(RedisModuleCtx *ctx);
-
+std::vector<float> OpenAiEmbedding::embedding(const std::string_view &input) {
+    return _open_ai.embedding(input);
 }
 
-#endif // end SEWENEW_REDIS_LLM_COMMANDS_H
+}

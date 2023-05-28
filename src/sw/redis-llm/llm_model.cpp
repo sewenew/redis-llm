@@ -15,11 +15,24 @@
  *************************************************************************/
 
 #include "sw/redis-llm/llm_model.h"
+#include <cassert>
 #include "sw/redis-llm/errors.h"
 #include "sw/redis-llm/openai.h"
 #include "sw/redis-llm/llama_cpp.h"
 
 namespace sw::redis::llm {
+
+std::string LlmModel::type() const {
+    try {
+        return _conf.at("type").get<std::string>();
+    } catch (const nlohmann::json::exception &) {
+        throw Error("no type field");
+    }
+
+    assert(false);
+
+    return "";
+}
 
 LlmModelFactory::LlmModelFactory() {
     _register("openai", std::make_unique<LlmModelCreatorTpl<OpenAi>>());

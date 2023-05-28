@@ -15,8 +15,11 @@
  *************************************************************************/
 
 #include "sw/redis-llm/create_command.h"
+#include "sw/redis-llm/application.h"
+#include "sw/redis-llm/module_api.h"
 #include "sw/redis-llm/redis_llm.h"
-#include "sw/redis-llm/util.h"
+#include "sw/redis-llm/utils.h"
+#include "sw/redis-llm/vector_store.h"
 
 namespace sw::redis::llm {
 
@@ -26,85 +29,91 @@ void CreateCommand::_run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
     RedisModule_ReplyWithLongLong(ctx, res);
 
     RedisModule_ReplicateVerbatim(ctx);
-
-    return REDISMODULE_OK;
 }
 
 int CreateCommand::_create(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const {
-    auto opts = _parse_options(argv, argc);
+    auto args = _parse_args(argv, argc);
 
-    auto key = api::open_key(ctx, opts.key_name, api::KeyMode::WRITEONLY);
+    auto key = api::open_key(ctx, args.key_name, api::KeyMode::WRITEONLY);
     assert(key);
 
     auto &llm = RedisLlm::instance();
     if (api::key_exists(key.get(), llm.type())) {
-        if (opts.opt == Options::Opt::NX) {
+        if (args.opt == Args::Opt::NX) {
             return 0;
         }
     } else {
-        if (opts.opt == Options::Opt::XX) {
+        if (args.opt == Args::Opt::XX) {
             return 0;
         }
     }
 
-    auto llm_model = llm.model_factory().create(opts.type, opts.args);
-    if (RedisModule_ModuleTypeSetValue(&key, llm.type(), model.get()) != REDISMODULE_OK) {
-        throw Error("failed to create model");
+    auto app = std::make_unique<Application>(args.llm_config,
+                args.embedding_config,
+                args.vector_store_config);
+    if (RedisModule_ModuleTypeSetValue(key.get(), llm.type(), app.get()) != REDISMODULE_OK) {
+        throw Error("failed to create LLM application");
     }
-    model.release();
+    app.release();
 
     return 1;
 }
 
-CreateCommand::Options CreateCommand::_parse_options(RedisModuleString **argv, int argc) const {
+CreateCommand::Args CreateCommand::_parse_args(RedisModuleString **argv, int argc) const {
     assert(argv != nullptr);
 
     if (argc < 4) {
         throw WrongArityError();
     }
 
-    Options opts;
-    opts.key_name = argv[1];
+    Args args;
+    args.key_name = argv[1];
 
     auto idx = 2;
     while (idx < argc) {
         auto opt = util::to_sv(argv[idx]);
         if (util::str_case_equal(opt, "--NX")) {
-            if (opts.opt != Options::Opt::NONE) {
+            if (args.opt != Args::Opt::NONE) {
                 throw Error("syntax error");
             }
 
-            opts.opt = Options::Opt::NX;
+            args.opt = Args::Opt::NX;
         } else if (util::str_case_equal(opt, "--XX")) {
-            if (opts.opt != Options::Opt::NONE) {
+            if (args.opt != Args::Opt::NONE) {
                 throw Error("syntax error");
             }
 
-            opts.opt = Options::Opt::XX;
+            args.opt = Args::Opt::XX;
         } else if (util::str_case_equal(opt, "--LLM")) {
             if (idx + 1 >= argc) {
                 throw Error("syntax error");
             }
             ++idx;
-            opts.llm_config = _parse_config(argv[idx]);
+            args.llm_config = _parse_config(argv[idx]);
         } else if (util::str_case_equal(opt, "--EMBEDDING")) {
             if (idx + 1 >= argc) {
                 throw Error("syntax error");
             }
             ++idx;
-            opts.embedding_config = _parse_config(argv[idx]);
+            args.embedding_config = _parse_config(argv[idx]);
         } else if (util::str_case_equal(opt, "--VECTOR_STORE")) {
             if (idx + 1 >= argc) {
                 throw Error("syntax error");
             }
             ++idx;
-            opts.vector_store_config = _parse_config(argv[idx]);
+            args.vector_store_config = _parse_config(argv[idx]);
         } else {
             break;
         }
+
+        ++idx;
     }
 
-    return opts;
+    if (args.llm_config.is_null()) {
+        throw Error("must specify LLM config");
+    }
+
+    return args;
 }
 
 nlohmann::json CreateCommand::_parse_config(RedisModuleString *str) const {

@@ -79,6 +79,16 @@ bool key_exists(RedisModuleKey *key, RedisModuleType *key_type);
 
 int reply_with_error(RedisModuleCtx *ctx, const Error &err);
 
+template <typename T>
+T* get_value_by_key(RedisModuleKey &key) {
+    auto *val = static_cast<T *>(RedisModule_ModuleTypeGetValue(&key));
+    if (val == nullptr) {
+        throw Error("failed to get value by key");
+    }
+
+    return val;
+}
+
 }
 
 #endif // end SEWENEW_REDIS_LLM_MODULE_API_H

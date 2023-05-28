@@ -16,8 +16,9 @@
 
 #include "sw/redis-llm/options.h"
 #include <vector>
-#include "sw/redis-llm/redis_llm.h"
 #include "sw/redis-llm/errors.h"
+#include "sw/redis-llm/redis_llm.h"
+#include "sw/redis-llm/utils.h"
 
 namespace sw::redis::llm {
 
@@ -52,10 +53,6 @@ void Options::load(RedisModuleString **argv, int argc) {
     */
 
     *this = std::move(opts);
-}
-
-}
-
 }
 
 }

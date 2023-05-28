@@ -15,7 +15,12 @@
  *************************************************************************/
 
 #include "sw/redis-llm/command.h"
+#include "sw/redis-llm/add_command.h"
+#include "sw/redis-llm/ask_command.h"
+#include "sw/redis-llm/create_command.h"
 #include "sw/redis-llm/errors.h"
+#include "sw/redis-llm/get_command.h"
+#include "sw/redis-llm/rem_command.h"
 
 namespace sw::redis::llm {
 
@@ -24,7 +29,7 @@ int Command::run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const 
         _run(ctx, argv, argc);
 
         return REDISMODULE_OK;
-    } catch (const WrongArityError &err) {
+    } catch (const WrongArityError &) {
         return RedisModule_WrongArity(ctx);
     } catch (const Error &err) {
         return api::reply_with_error(ctx, err);
@@ -32,26 +37,51 @@ int Command::run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const 
 
     return REDISMODULE_ERR;
 }
-    
+
 namespace cmd {
 
-void create_commands(RedisModuleCtx * /*ctx*/) {
-    /*
+void create_commands(RedisModuleCtx *ctx) {
     if (RedisModule_CreateCommand(ctx,
-                "PB.SET",
+                "LLM.CREATE",
                 [](RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-                    SetCommand cmd;
+                    CreateCommand cmd;
                     return cmd.run(ctx, argv, argc);
                 },
                 "write deny-oom",
                 1,
                 1,
                 1) == REDISMODULE_ERR) {
-        throw Error("fail to create PB.SET command");
+        throw Error("fail to create LLM.CREATE command");
     }
 
     if (RedisModule_CreateCommand(ctx,
-                "PB.GET",
+                "LLM.ADD",
+                [](RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+                    AddCommand cmd;
+                    return cmd.run(ctx, argv, argc);
+                },
+                "write deny-oom",
+                1,
+                1,
+                1) == REDISMODULE_ERR) {
+        throw Error("fail to create LLM.ADD command");
+    }
+
+    if (RedisModule_CreateCommand(ctx,
+                "LLM.REM",
+                [](RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+                    RemCommand cmd;
+                    return cmd.run(ctx, argv, argc);
+                },
+                "write deny-oom",
+                1,
+                1,
+                1) == REDISMODULE_ERR) {
+        throw Error("fail to create LLM.REM command");
+    }
+
+    if (RedisModule_CreateCommand(ctx,
+                "LLM.GET",
                 [](RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
                     GetCommand cmd;
                     return cmd.run(ctx, argv, argc);
@@ -60,22 +90,21 @@ void create_commands(RedisModuleCtx * /*ctx*/) {
                 1,
                 1,
                 1) == REDISMODULE_ERR) {
-        throw Error("failed to create PB.GET command");
+        throw Error("failed to create LLM.GET command");
     }
 
     if (RedisModule_CreateCommand(ctx,
-                "PB.SCHEMA",
+                "LLM.ASK",
                 [](RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-                    SchemaCommand cmd;
+                    AskCommand cmd;
                     return cmd.run(ctx, argv, argc);
                 },
-                "readonly getkeys-api",
+                "readonly",
                 1,
                 1,
                 1) == REDISMODULE_ERR) {
-        throw Error("failed to create PB.SCHEMA command");
+        throw Error("failed to create LLM.GET command");
     }
-    */
 }
 
 }

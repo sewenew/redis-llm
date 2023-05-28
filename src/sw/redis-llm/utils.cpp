@@ -71,94 +71,6 @@ bool str_case_equal(const std::string_view &s1, const std::string_view &s2) {
     return true;
 }
 
-const std::string_view& option_value(const std::vector<std::string_view> &args,
-        std::size_t &index) {
-    if (index + 1 >= args.size()) {
-        throw Error("syntax error");
-    }
-
-    ++index;
-
-    return args[index];
-}
-
-int32_t sv_to_int32(const StringView &sv) {
-    try {
-        return std::stoi(std::string(sv.data(), sv.size()));
-    } catch (const std::exception &e) {
-        throw Error("not int32");
-    }
-}
-
-int64_t sv_to_int64(const StringView &sv) {
-    try {
-        return std::stoll(std::string(sv.data(), sv.size()));
-    } catch (const std::exception &e) {
-        throw Error("not int64");
-    }
-}
-
-uint32_t sv_to_uint32(const StringView &sv) {
-    try {
-        // TODO: check if it's overflow
-        return std::stoul(std::string(sv.data(), sv.size()));
-    } catch (const std::exception &e) {
-        throw Error("not uint32");
-    }
-}
-
-uint64_t sv_to_uint64(const StringView &sv) {
-    try {
-        return std::stoull(std::string(sv.data(), sv.size()));
-    } catch (const std::exception &e) {
-        throw Error("not uint64");
-    }
-}
-
-double sv_to_double(const StringView &sv) {
-    try {
-        return std::stod(std::string(sv.data(), sv.size()));
-    } catch (const std::exception &e) {
-        throw Error("not double");
-    }
-}
-
-float sv_to_float(const StringView &sv) {
-    try {
-        return std::stof(std::string(sv.data(), sv.size()));
-    } catch (const std::exception &e) {
-        throw Error("not float");
-    }
-}
-
-bool sv_to_bool(const StringView &sv) {
-    bool b = false;
-    auto s = std::string(sv.data(), sv.size());
-    // TODO: make it case insensitive
-    if (s == "true") {
-        b = true;
-    } else if (s == "false") {
-        b = false;
-    } else {
-        try {
-            auto val = std::stoi(s);
-            if (val == 0) {
-                b = false;
-            } else {
-                b = true;
-            }
-        } catch (const std::exception &e) {
-            throw Error("not bool");
-        }
-    }
-
-    return b;
-}
-
-std::string sv_to_string(const StringView &sv) {
-    return std::string(sv.data(), sv.size());
-}
-
 }
 
 namespace io {
@@ -227,7 +139,7 @@ namespace {
 mode_t file_type(const std::string &file) {
     struct stat buf;
     if (stat(file.c_str(), &buf) < 0) {
-        throw sw::redis::pb::Error("failed to get file status: " + file);
+        throw sw::redis::llm::Error("failed to get file status: " + file);
     }
 
     return buf.st_mode;

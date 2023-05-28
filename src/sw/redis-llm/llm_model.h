@@ -28,7 +28,7 @@ namespace sw::redis::llm {
 
 class LlmModel {
 public:
-    explicit LlmModel(const std::string &type) : _type(type) {}
+    explicit LlmModel(const nlohmann::json &conf) : _conf(conf) {}
 
     virtual ~LlmModel() = default;
 
@@ -36,19 +36,17 @@ public:
 
     virtual std::string predict(const std::string_view &input) = 0;
 
-    virtual std::string serialize() = 0;
+    std::string type() const;
 
-    virtual void deserialize(const std::string_view &data) = 0;
-
-    const std::string& type() const {
-        return _type;
+    const nlohmann::json& conf() const {
+        return _conf;
     }
 
 private:
-    std::string _type;
+    nlohmann::json _conf;
 };
 
-using LlmModelUPtr = std::unqiue_ptr<LlmModel>;
+using LlmModelUPtr = std::unique_ptr<LlmModel>;
 
 class LlmModelCreator {
 public:

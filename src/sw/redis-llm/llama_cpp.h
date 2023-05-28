@@ -28,7 +28,7 @@ public:
 
     virtual std::vector<float> embedding(const std::string_view &input) override;
 
-    virtual std::string predict(const std::string &input) override;
+    virtual std::string predict(const std::string_view &input) override;
 
 private:
     struct Options {

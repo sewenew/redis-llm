@@ -22,36 +22,35 @@
 #include <string_view>
 #include <unordered_map>
 #include <vector>
+#include "nlohmann/json.hpp"
 
 namespace sw::redis::llm {
 
 class EmbeddingModel {
 public:
-    explicit EmbeddingModel(const std::string &type) : _type(type) {}
+    explicit EmbeddingModel(const nlohmann::json &conf) : _conf(conf) {}
 
     virtual ~EmbeddingModel() = default;
 
     virtual std::vector<float> embedding(const std::string_view &input) = 0;
 
-    virtual std::string serialize() = 0;
+    std::string type() const;
 
-    virtual void deserialize(const std::string_view &data) = 0;
-
-    const std::string& type() const {
-        return _type;
+    const nlohmann::json& conf() const {
+        return _conf;
     }
 
 private:
-    std::string _type;
+    nlohmann::json _conf;
 };
 
-using EmbeddingModelUPtr = std::unqiue_ptr<EmbeddingModel>;
+using EmbeddingModelUPtr = std::unique_ptr<EmbeddingModel>;
 
 class EmbeddingModelCreator {
 public:
     virtual ~EmbeddingModelCreator() = default;
 
-    virtual EmbeddingModelUPtr create(const std::vector<std::string_view> args) const = 0;
+    virtual EmbeddingModelUPtr create(const nlohmann::json &conf) const = 0;
 };
 
 using EmbeddingModelCreatorUPtr = std::unique_ptr<EmbeddingModelCreator>;
@@ -59,8 +58,8 @@ using EmbeddingModelCreatorUPtr = std::unique_ptr<EmbeddingModelCreator>;
 template <typename T>
 class EmbeddingModelCreatorTpl : public EmbeddingModelCreator {
 public:
-    virtual EmbeddingModelUPtr create(const std::vector<std::string_view> &args) const {
-        return std::make_unique<T>(args);
+    virtual EmbeddingModelUPtr create(const nlohmann::json &conf) const {
+        return std::make_unique<T>(conf);
     }
 };
 
@@ -68,7 +67,7 @@ class EmbeddingModelFactory {
 public:
     EmbeddingModelFactory();
 
-    EmbeddingModelUPtr create(const std::string_view &type, const std::vector<std::string_view> &args) const;
+    EmbeddingModelUPtr create(const nlohmann::json &conf) const;
 
 private:
     void _register(const std::string &type, EmbeddingModelCreatorUPtr creator);
