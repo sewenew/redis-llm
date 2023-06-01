@@ -37,10 +37,20 @@ private:
     struct Options {
         std::string api_key;
 
-        std::string model;
+        nlohmann::json chat;
+
+        std::string chat_uri;
+
+        nlohmann::json embedding;
+
+        std::string embedding_uri;
     };
 
     Options _parse_options(const nlohmann::json &conf) const;
+
+    nlohmann::json _construct_msg(const std::string_view &input) const;
+
+    nlohmann::json _query(const std::string &path, const nlohmann::json &input);
 
     std::unique_ptr<httplib::Client> _make_client(const Options &opts) const;
 

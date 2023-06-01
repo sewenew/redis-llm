@@ -19,13 +19,13 @@
 namespace sw::redis::llm {
 
 VectorStore::VectorStore(const nlohmann::json &conf) :
-    _opts(_parse_options(conf)), _conf(conf) {
+    _conf(conf), _opts(_parse_options(conf)) {
     _space = std::make_unique<hnswlib::L2Space>(_opts.dim);
     _hnsw = std::make_unique<hnswlib::HierarchicalNSW<float>>(_space.get(), _opts.max_elements, _opts.m, _opts.ef_construction);
 }
 
-void VectorStore::add(uint64_t id, const std::vector<float> &data) {
-    if (data.size() != _opts.dim) {
+void VectorStore::add(uint64_t id, const std::string_view &data, const Vector &embedding) {
+    if (embedding.size() != _opts.dim) {
         throw Error("vector dimension does not match");
     }
 
@@ -34,14 +34,23 @@ void VectorStore::add(uint64_t id, const std::vector<float> &data) {
     } catch (const std::exception &e) {
         throw Error("failed to do set: " + std::to_string(id));
     }
+
+    _data_store[id] = data;
 }
 
-void VectorStore::rem(uint64_t id) {
+bool VectorStore::rem(uint64_t id) {
+    auto iter = _data_store.find(id);
+    if (iter == _data_store.end()) {
+        return false;
+    }
+
     try {
         _hnsw->markDelete(id);
     } catch (const std::exception &e) {
         throw Error("failed to delete: " + std::to_string(id) + ", err: " + e.what());
     }
+
+    _data_store.erase(iter);
 }
 
 std::optional<Vector> VectorStore::get(uint64_t id) {
@@ -54,7 +63,16 @@ std::optional<Vector> VectorStore::get(uint64_t id) {
     return std::nullopt;
 }
 
-std::vector<std::pair<uint64_t, float>> VectorStore::knn(const std::vector<float> &query, std::size_t k) {
+std::optional<std::string> VectorStore::data(uint64_t id) {
+    auto iter = _data_store.find(id);
+    if (iter == _data_store.end()) {
+        return std::nullopt;
+    }
+
+    return iter->second;
+}
+
+std::vector<std::pair<uint64_t, float>> VectorStore::knn(const Vector &query, std::size_t k) {
     std::vector<std::pair<uint64_t, float>> output;
     try {
         auto res = _hnsw->searchKnn(query.data(), k);

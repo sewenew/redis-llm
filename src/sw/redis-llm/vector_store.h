@@ -31,13 +31,16 @@ class VectorStore {
 public:
     explicit VectorStore(const nlohmann::json &conf);
 
-    void add(uint64_t id, const std::vector<float> &data);
+    void add(uint64_t id, const std::string_view &data, const Vector &embedding);
 
-    void rem(uint64_t id);
+    // @return false, if data does not exist. true, otherwise.
+    bool rem(uint64_t id);
 
     std::optional<Vector> get(uint64_t id);
 
-    std::vector<std::pair<uint64_t, float>> knn(const std::vector<float> &query, std::size_t k);
+    std::optional<std::string> data(uint64_t id);
+
+    std::vector<std::pair<uint64_t, float>> knn(const Vector &query, std::size_t k);
 
     const nlohmann::json& conf() const {
         return _conf;
@@ -57,12 +60,14 @@ private:
 
     Options _parse_options(const nlohmann::json &conf) const;
 
+    nlohmann::json _conf;
+
     Options _opts;
 
     std::unique_ptr<hnswlib::SpaceInterface<float>> _space;
     std::unique_ptr<hnswlib::HierarchicalNSW<float>> _hnsw;
 
-    nlohmann::json _conf;
+    std::unordered_map<uint64_t, std::string> _data_store;
 };
 
 }

@@ -24,10 +24,10 @@ Application::Application(const nlohmann::json &llm_config,
         const nlohmann::json &vector_store_config) {
     auto &llm = RedisLlm::instance();
 
-    _llm = llm.llm_factory().create(llm_config);
+    _llm = llm.llm_factory().create("", llm_config);
 
     if (!embedding_config.empty()) {
-        _embedding = llm.embedding_factory().create(embedding_config);
+        _embedding = llm.embedding_factory().create("", embedding_config);
     }
 
     _vector_store = std::make_unique<VectorStore>(vector_store_config);
@@ -39,8 +39,7 @@ Application::Application(const nlohmann::json &llm_config,
         std::unordered_map<uint64_t, std::pair<std::string, Vector>> data_store) :
     Application(llm_config, embedding_config, vector_store_config) {
     for (auto &[id, data] : data_store) {
-        _vector_store->add(id, data.second);
-        _data_store.emplace(id, data.first);
+        _vector_store->add(id, data.first, data.second);
     }
 }
 
@@ -73,37 +72,19 @@ void Application::add(uint64_t id, const std::string_view &data) {
         embedding = _llm->embedding(data);
     }
 
-    _vector_store->add(id, embedding);
-
-    _data_store[id] = data;
+    _vector_store->add(id, data, embedding);
 }
 
 void Application::add(uint64_t id, const std::string_view &data, const Vector &embedding) {
-    _vector_store->add(id, embedding);
-
-    _data_store[id] = data;
+    _vector_store->add(id, data, embedding);
 }
 
 bool Application::rem(uint64_t id) {
-    auto iter = _data_store.find(id);
-    if (iter == _data_store.end()) {
-        return false;
-    }
-
-    _data_store.erase(iter);
-
-    _vector_store->rem(id);
-
-    return true;
+    return _vector_store->rem(id);
 }
 
 std::optional<std::string> Application::get(uint64_t id) {
-    auto iter = _data_store.find(id);
-    if (iter != _data_store.end()) {
-        return iter->second;
-    }
-
-    return std::nullopt;
+    return _vector_store->data(id);
 }
 
 std::optional<Vector> Application::embedding(uint64_t id) {

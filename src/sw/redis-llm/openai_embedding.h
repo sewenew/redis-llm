@@ -25,7 +25,7 @@ namespace sw::redis::llm {
 
 class OpenAiEmbedding : public EmbeddingModel {
 public:
-    explicit OpenAiEmbedding(const nlohmann::json &conf) : EmbeddingModel(conf), _open_ai(conf) {}
+    OpenAiEmbedding(const nlohmann::json &conf) : EmbeddingModel("openai", conf), _open_ai(conf) {}
 
     virtual std::vector<float> embedding(const std::string_view &input) override;
 

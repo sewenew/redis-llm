@@ -28,7 +28,7 @@ namespace sw::redis::llm {
 
 class LlmModel {
 public:
-    explicit LlmModel(const nlohmann::json &conf) : _conf(conf) {}
+    explicit LlmModel(const std::string &type, const nlohmann::json &conf) : _type(type), _conf(conf) {}
 
     virtual ~LlmModel() = default;
 
@@ -36,13 +36,17 @@ public:
 
     virtual std::string predict(const std::string_view &input) = 0;
 
-    std::string type() const;
+    const std::string& type() const {
+        return _type;
+    }
 
     const nlohmann::json& conf() const {
         return _conf;
     }
 
 private:
+    std::string _type;
+
     nlohmann::json _conf;
 };
 
@@ -52,7 +56,7 @@ class LlmModelCreator {
 public:
     virtual ~LlmModelCreator() = default;
 
-    virtual LlmModelUPtr create(const nlohmann::json &conf) const = 0;
+    virtual LlmModelUPtr create(const std::string &type, const nlohmann::json &conf) const = 0;
 };
 
 using LlmModelCreatorUPtr = std::unique_ptr<LlmModelCreator>;
@@ -60,7 +64,7 @@ using LlmModelCreatorUPtr = std::unique_ptr<LlmModelCreator>;
 template <typename T>
 class LlmModelCreatorTpl : public LlmModelCreator {
 public:
-    virtual LlmModelUPtr create(const nlohmann::json &conf) const {
+    virtual LlmModelUPtr create(const std::string &type, const nlohmann::json &conf) const {
         return std::make_unique<T>(conf);
     }
 };
@@ -69,7 +73,7 @@ class LlmModelFactory {
 public:
     LlmModelFactory();
 
-    LlmModelUPtr create(const nlohmann::json &conf) const;
+    LlmModelUPtr create(const std::string &type, const nlohmann::json &conf) const;
 
 private:
     void _register(const std::string &type, LlmModelCreatorUPtr creator);

@@ -22,31 +22,18 @@
 
 namespace sw::redis::llm {
 
-std::string LlmModel::type() const {
-    try {
-        return _conf.at("type").get<std::string>();
-    } catch (const nlohmann::json::exception &) {
-        throw Error("no type field");
-    }
-
-    assert(false);
-
-    return "";
-}
-
 LlmModelFactory::LlmModelFactory() {
     _register("openai", std::make_unique<LlmModelCreatorTpl<OpenAi>>());
     _register("llamacpp", std::make_unique<LlmModelCreatorTpl<LlamaCpp>>());
 }
 
-LlmModelUPtr LlmModelFactory::create(const nlohmann::json &conf) const {
-    auto type = conf.at("type").get<std::string>();
+LlmModelUPtr LlmModelFactory::create(const std::string &type, const nlohmann::json &conf) const {
     auto iter = _creators.find(type);
     if (iter == _creators.end()) {
         throw Error(std::string("unknown LLM model: ") + type);
     }
 
-    return iter->second->create(conf);
+    return iter->second->create(type, conf);
 }
 
 void LlmModelFactory::_register(const std::string &type, LlmModelCreatorUPtr creator) {

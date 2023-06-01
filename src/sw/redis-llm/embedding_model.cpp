@@ -21,30 +21,17 @@
 
 namespace sw::redis::llm {
 
-std::string EmbeddingModel::type() const {
-    try {
-        return _conf.at("type").get<std::string>();
-    } catch (const nlohmann::json::exception &) {
-        throw Error("no type field");
-    }
-
-    assert(false);
-
-    return "";
-}
-
 EmbeddingModelFactory::EmbeddingModelFactory() {
     _register("openai", std::make_unique<EmbeddingModelCreatorTpl<OpenAiEmbedding>>());
 }
 
-EmbeddingModelUPtr EmbeddingModelFactory::create(const nlohmann::json &conf) const {
-    auto type = conf.at("type").get<std::string>();
+EmbeddingModelUPtr EmbeddingModelFactory::create(const std::string &type, const nlohmann::json &conf) const {
     auto iter = _creators.find(type);
     if (iter == _creators.end()) {
         throw Error(std::string("unknown embedding model: ") + type);
     }
 
-    return iter->second->create(conf);
+    return iter->second->create(type, conf);
 }
 
 void EmbeddingModelFactory::_register(const std::string &type, EmbeddingModelCreatorUPtr creator) {

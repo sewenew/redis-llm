@@ -14,32 +14,30 @@
    limitations under the License.
  *************************************************************************/
 
-#include "sw/redis-llm/llama_cpp.h"
-#include "sw/redis-llm/errors.h"
+#ifndef SEWENEW_REDIS_LLM_CREATE_LLM_COMMAND_H
+#define SEWENEW_REDIS_LLM_CREATE_LLM_COMMAND_H
+
+#include "nlohmann/json.hpp"
+#include "sw/redis-llm/command.h"
+#include "sw/redis-llm/module_api.h"
 
 namespace sw::redis::llm {
 
-LlamaCpp::LlamaCpp(const nlohmann::json &conf) :
-    LlmModel("llamacpp", conf),
-    _opts(_parse_options(conf)) {}
+class CreateLlmCommand : public Command {
+private:
+    virtual void _run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const override;
 
-std::vector<float> LlamaCpp::embedding(const std::string_view &input) {
-    return {};
-}
+    struct Args {
+        std::string type;
 
-std::string LlamaCpp::predict(const std::string_view &input) {
-    return "";
-}
+        nlohmann::json params;
+    };
 
-LlamaCpp::Options LlamaCpp::_parse_options(const nlohmann::json &conf) const {
-    Options opts;
-    try {
-        opts.sub_type = conf.at("sub_type").get<std::string>();
-    } catch (const nlohmann::json::exception &e) {
-        throw Error(std::string("failed to parse llama options: ") + e.what());
-    }
+    Args _parse_args(RedisModuleString **argv, int argc) const;
 
-    return opts;
-}
+    nlohmann::json _parse_params(const std::string_view &opt) const;
+};
 
 }
+
+#endif // end SEWENEW_REDIS_LLM_CREATE_LLM_COMMAND_H

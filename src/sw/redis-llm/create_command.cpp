@@ -16,6 +16,7 @@
 
 #include "sw/redis-llm/create_command.h"
 #include "sw/redis-llm/application.h"
+#include "sw/redis-llm/create_llm_command.h"
 #include "sw/redis-llm/module_api.h"
 #include "sw/redis-llm/redis_llm.h"
 #include "sw/redis-llm/utils.h"
@@ -48,6 +49,28 @@ int CreateCommand::_create(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
         }
     }
 
+    auto *sub_cmd_argv = argv + 3;
+    auto sub_cmd_argc = argc - 3;
+    if (args.opt != Args::Opt::NONE) {
+        ++sub_cmd_argv;
+        --sub_cmd_argc;
+    }
+
+    switch (args.sub_cmd) {
+    case SubCmd::LLM: {
+        CreateLlmCommand cmd;
+        cmd.run(ctx, sub_cmd_argv, sub_cmd_argc);
+        break;
+    }
+
+    case SubCmd::APP:
+        break;
+
+    default:
+        break;
+    }
+
+    /*
     auto app = std::make_unique<Application>(args.llm_config,
                 args.embedding_config,
                 args.vector_store_config);
@@ -55,62 +78,67 @@ int CreateCommand::_create(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
         throw Error("failed to create LLM application");
     }
     app.release();
+    */
 
     return 1;
+}
+
+bool CreateCommand::_parse_nx_xx_option(const std::string_view &opt, Args &args) const {
+    if (util::str_case_equal(opt, "--NX")) {
+        if (args.opt != Args::Opt::NONE) {
+            throw Error("syntax error");
+        }
+
+        args.opt = Args::Opt::NX;
+
+        return true;
+    } else if (util::str_case_equal(opt, "--XX")) {
+        if (args.opt != Args::Opt::NONE) {
+            throw Error("syntax error");
+        }
+
+        args.opt = Args::Opt::XX;
+
+        return true;
+    } else {
+        return false;
+    }
+}
+
+CreateCommand::SubCmd CreateCommand::_parse_sub_cmd(const std::string_view &opt) const {
+    if (util::str_case_equal(opt, "LLM")) {
+        return SubCmd::LLM;
+    } else if (util::str_case_equal(opt, "EMBEDDING")) {
+        return SubCmd::EMBEDDING;
+    } else if (util::str_case_equal(opt, "VECTORE_STORE")) {
+        return SubCmd::VECTOR_STORE;
+    } else if (util::str_case_equal(opt, "PROMPT")) {
+        return SubCmd::PROMPT;
+    } else if (util::str_case_equal(opt, "APP")) {
+        return SubCmd::APP;
+    } else {
+        throw Error("unknown sub command");
+    }
 }
 
 CreateCommand::Args CreateCommand::_parse_args(RedisModuleString **argv, int argc) const {
     assert(argv != nullptr);
 
-    if (argc < 4) {
+    if (argc < 3) {
         throw WrongArityError();
     }
 
     Args args;
-    args.key_name = argv[1];
+    args.sub_cmd = _parse_sub_cmd(util::to_sv(argv[1]));
+    args.key_name = argv[2];
 
-    auto idx = 2;
-    while (idx < argc) {
-        auto opt = util::to_sv(argv[idx]);
+    if (argc > 3) {
+        auto opt = util::to_sv(argv[3]);
         if (util::str_case_equal(opt, "--NX")) {
-            if (args.opt != Args::Opt::NONE) {
-                throw Error("syntax error");
-            }
-
             args.opt = Args::Opt::NX;
         } else if (util::str_case_equal(opt, "--XX")) {
-            if (args.opt != Args::Opt::NONE) {
-                throw Error("syntax error");
-            }
-
             args.opt = Args::Opt::XX;
-        } else if (util::str_case_equal(opt, "--LLM")) {
-            if (idx + 1 >= argc) {
-                throw Error("syntax error");
-            }
-            ++idx;
-            args.llm_config = _parse_config(argv[idx]);
-        } else if (util::str_case_equal(opt, "--EMBEDDING")) {
-            if (idx + 1 >= argc) {
-                throw Error("syntax error");
-            }
-            ++idx;
-            args.embedding_config = _parse_config(argv[idx]);
-        } else if (util::str_case_equal(opt, "--VECTOR_STORE")) {
-            if (idx + 1 >= argc) {
-                throw Error("syntax error");
-            }
-            ++idx;
-            args.vector_store_config = _parse_config(argv[idx]);
-        } else {
-            break;
         }
-
-        ++idx;
-    }
-
-    if (args.llm_config.is_null()) {
-        throw Error("must specify LLM config");
     }
 
     return args;

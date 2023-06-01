@@ -18,14 +18,25 @@
 #define SEWENEW_REDIS_LLM_CREATE_COMMAND_H
 
 #include "nlohmann/json.hpp"
-#include "sw/redis-llm/module_api.h"
 #include "sw/redis-llm/command.h"
+#include "sw/redis-llm/module_api.h"
 
 namespace sw::redis::llm {
 
 class CreateCommand : public Command {
 private:
     virtual void _run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const override;
+
+    enum class SubCmd {
+        LLM = 0,
+        EMBEDDING,
+        VECTOR_STORE,
+        PROMPT,
+        APP,
+        NONE
+    };
+
+    SubCmd _parse_sub_cmd(const std::string_view &opt) const;
 
     struct Args {
         enum class Opt {
@@ -36,16 +47,16 @@ private:
 
         Opt opt = Opt::NONE;
 
+        SubCmd sub_cmd = SubCmd::NONE;
+
         RedisModuleString *key_name = nullptr;
 
-        nlohmann::json llm_config;
-
-        nlohmann::json embedding_config = nlohmann::json::object();
-
-        nlohmann::json vector_store_config = nlohmann::json::object();
+        std::vector<std::string_view> args;
     };
 
     Args _parse_args(RedisModuleString **argv, int argc) const;
+
+    bool _parse_nx_xx_option(const std::string_view &opt, Args &args) const;
 
     nlohmann::json _parse_config(RedisModuleString *str) const;
 

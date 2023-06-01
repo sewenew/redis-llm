@@ -16,49 +16,90 @@
 
 #include "sw/redis-llm/openai.h"
 #include "sw/redis-llm/errors.h"
+#include "sw/redis-llm/utils.h"
 
 namespace sw::redis::llm {
 
 OpenAi::OpenAi(const nlohmann::json &conf) :
-    LlmModel(conf),
+    LlmModel("openai", conf),
     _opts(_parse_options(conf)),
     _cli(_make_client(_opts)) {}
 
 std::string OpenAi::predict(const std::string_view &input) {
-    nlohmann::json req;
-    req["model"] = _opts.model;
-    req["messages"] = nlohmann::json::array();
+    try {
+        if (_opts.chat.is_null()) {
+            throw Error("no chat conf is specified");
+        }
+
+        // Set model and other parameters.
+        auto req = _opts.chat;
+        req["messages"] = _construct_msg(input);
+
+        auto ans = _query(_opts.chat_uri, req);
+
+        return ans["choices"][0]["message"]["content"].get<std::string>();
+    } catch (const std::exception &e) {
+        throw Error(std::string("failed to predict: ") + e.what());
+    }
+
+    return "";
+}
+
+Vector OpenAi::embedding(const std::string_view &input) {
+    try {
+        if (_opts.embedding.is_null()) {
+            throw Error("no embedding config is specified");
+        }
+
+        auto req = _opts.embedding;
+        req["input"] = input;
+
+        auto ans = _query(_opts.embedding_uri, req);
+
+        return ans["data"][0]["embedding"].get<Vector>();
+    } catch (const std::exception &e) {
+        throw Error(std::string("failed to request embedding: ") + e.what());
+    }
+
+    // Never reach here.
+    return {};
+}
+
+nlohmann::json OpenAi::_construct_msg(const std::string_view &input) const {
+    auto messages= nlohmann::json::array();
+
     nlohmann::json msg;
     msg["role"] = "user";
     msg["content"] = input;
-    req["messages"].push_back(std::move(msg));
-    auto res = _cli->Post("/v1/chat/completions", req.dump(), "application/json");
+
+    messages.push_back(std::move(msg));
+
+    return messages;
+}
+
+nlohmann::json OpenAi::_query(const std::string &path, const nlohmann::json &req) {
+    auto res = _cli->Post(std::string(path), req.dump(), "application/json");
     if (!res || res->status != 200) {
         throw Error("failed to request openai");
     }
 
-    auto ans = nlohmann::json::parse(res->body);
-    return ans["choices"][0]["message"]["content"].get<std::string>();
-}
-
-std::vector<float> OpenAi::embedding(const std::string_view &input) {
-    nlohmann::json req;
-    req["input"] = input;
-    req["model"] = _opts.model;
-    auto res = _cli->Post("/v1/embeddings", req.dump(), "application/json");
-    if (!res || res->status != 200) {
-        throw Error("failed to request openai embedding");
-    }
-
-    auto ans = nlohmann::json::parse(res->body);
-    return ans["data"][0]["embedding"].get<std::vector<float>>();
+    return nlohmann::json::parse(res->body);
 }
 
 OpenAi::Options OpenAi::_parse_options(const nlohmann::json &conf) const {
     Options opts;
     try {
         opts.api_key = conf.at("api_key").get<std::string>();
-        opts.model = conf.at("model").get<std::string>();
+        auto iter = conf.find("chat");
+        if (iter != conf.end()) {
+            opts.chat = iter.value();
+        }
+        opts.chat_uri = conf.value<std::string>("chat_uri", "/v1/chat/completions");
+        iter = conf.find("embedding");
+        if (iter != conf.end()) {
+            opts.embedding = iter.value();
+        }
+        opts.embedding_uri = conf.value<std::string>("embedding_uri", "/v1/embeddings");
     } catch (const nlohmann::json::exception &e) {
         throw Error(std::string("failed to parse openai options: ") + e.what());
     }
