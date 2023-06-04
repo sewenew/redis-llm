@@ -14,8 +14,8 @@
    limitations under the License.
  *************************************************************************/
 
-#ifndef SEWENEW_REDIS_LLM_CREATE_LLM_COMMAND_H
-#define SEWENEW_REDIS_LLM_CREATE_LLM_COMMAND_H
+#ifndef SEWENEW_REDIS_LLM_CREATE_VECTOR_STORE_COMMAND_H
+#define SEWENEW_REDIS_LLM_CREATE_VECTOR_STORE_COMMAND_H
 
 #include "nlohmann/json.hpp"
 #include "sw/redis-llm/command.h"
@@ -23,10 +23,10 @@
 
 namespace sw::redis::llm {
 
-// LLM.CREATE LLM key --TYPE openai --PARAMS '{}'
-class CreateLlmCommand : public Command {
+// LLM.CREATE VECTOR_STORE key [--TYPE xxx] --PARAMS '{}'
+class CreateVectorStoreCommand : public Command {
 public:
-    explicit CreateLlmCommand(RedisModuleKey &key) : _key(key) {}
+    explicit CreateVectorStoreCommand(RedisModuleKey &key) : _key(key) {}
 
 private:
     virtual void _run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const override;
@@ -35,6 +35,8 @@ private:
         std::string type;
 
         nlohmann::json params;
+
+        std::string llm;
     };
 
     Args _parse_args(RedisModuleString **argv, int argc) const;
@@ -46,4 +48,4 @@ private:
 
 }
 
-#endif // end SEWENEW_REDIS_LLM_CREATE_LLM_COMMAND_H
+#endif // end SEWENEW_REDIS_LLM_CREATE_VECTOR_STORE_COMMAND_H

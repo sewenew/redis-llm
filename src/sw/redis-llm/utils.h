@@ -34,6 +34,8 @@ std::string_view to_sv(RedisModuleString *str);
 
 std::vector<std::string_view> to_sv(RedisModuleString **argv, int argc);
 
+std::string to_string(RedisModuleString *str);
+
 bool str_case_equal(const std::string_view &s1, const std::string_view &s2);
 
 template <typename Func>

@@ -21,6 +21,7 @@
 #include "sw/redis-llm/llm_model.h"
 #include "sw/redis-llm/embedding_model.h"
 #include "sw/redis-llm/options.h"
+#include "sw/redis-llm/vector_store.h"
 
 namespace sw::redis::llm {
 
@@ -48,12 +49,28 @@ public:
         return _MODULE_NAME;
     }
 
-    const std::string& type_name() const {
-        return _TYPE_NAME;
+    const std::string& llm_type_name() const {
+        return _LLM_TYPE_NAME;
     }
 
-    RedisModuleType* type() {
-        return _module_type;
+    RedisModuleType* llm_type() {
+        return _llm_module_type;
+    }
+
+    RedisModuleType* vector_store_type() {
+        return _vector_store_module_type;
+    }
+
+    const std::string& vector_store_type_name() const {
+        return _VECTOR_STORE_TYPE_NAME;
+    }
+
+    const std::string& app_type_name() const {
+        return _APP_TYPE_NAME;
+    }
+
+    RedisModuleType* app_type() {
+        return _app_module_type;
     }
 
     const Options& options() const {
@@ -68,16 +85,36 @@ public:
         return _embedding_factory;
     }
 
+    VectorStoreFactory& vector_store_factory() {
+        return _vector_store_factory;
+    }
+
 private:
     RedisLlm() = default;
 
-    static void* _rdb_load(RedisModuleIO *rdb, int encver);
+    static void* _rdb_load_llm(RedisModuleIO *rdb, int encver);
 
-    static void _rdb_save(RedisModuleIO *rdb, void *value);
+    static void _rdb_save_llm(RedisModuleIO *rdb, void *value);
 
-    static void _aof_rewrite(RedisModuleIO *aof, RedisModuleString *key, void *value);
+    static void _aof_rewrite_llm(RedisModuleIO *aof, RedisModuleString *key, void *value);
 
-    static void _free_msg(void *value);
+    static void _free_llm(void *value);
+
+    static void* _rdb_load_app(RedisModuleIO *rdb, int encver);
+
+    static void _rdb_save_app(RedisModuleIO *rdb, void *value);
+
+    static void _aof_rewrite_app(RedisModuleIO *aof, RedisModuleString *key, void *value);
+
+    static void _free_app(void *value);
+
+    static void* _rdb_load_vector_store(RedisModuleIO *rdb, int encver);
+
+    static void _rdb_save_vector_store(RedisModuleIO *rdb, void *value);
+
+    static void _aof_rewrite_vector_store(RedisModuleIO *aof, RedisModuleString *key, void *value);
+
+    static void _free_vector_store(void *value);
 
     const int _MODULE_VERSION = 1;
 
@@ -85,15 +122,25 @@ private:
 
     const std::string _MODULE_NAME = "LLM";
 
-    const std::string _TYPE_NAME = "REDLLM-SW";
+    const std::string _LLM_TYPE_NAME = "REDLLM-SW";
 
-    RedisModuleType *_module_type = nullptr;
+    RedisModuleType *_llm_module_type = nullptr;
+
+    const std::string _APP_TYPE_NAME = "REDAPP-SW";
+
+    RedisModuleType *_app_module_type = nullptr;
+
+    const std::string _VECTOR_STORE_TYPE_NAME = "REDVEC-SW";
+
+    RedisModuleType *_vector_store_module_type = nullptr;
 
     Options _options;
 
     LlmModelFactory _llm_factory;
 
     EmbeddingModelFactory _embedding_factory;
+
+    VectorStoreFactory _vector_store_factory;
 };
 
 }

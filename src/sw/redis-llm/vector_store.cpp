@@ -15,91 +15,41 @@
  *************************************************************************/
 
 #include "sw/redis-llm/vector_store.h"
+#include "sw/redis-llm/hnsw.h"
 
 namespace sw::redis::llm {
 
-VectorStore::VectorStore(const nlohmann::json &conf) :
-    _conf(conf), _opts(_parse_options(conf)) {
-    _space = std::make_unique<hnswlib::L2Space>(_opts.dim);
-    _hnsw = std::make_unique<hnswlib::HierarchicalNSW<float>>(_space.get(), _opts.max_elements, _opts.m, _opts.ef_construction);
+std::size_t VectorStore::dim() const {
+    auto iter = _conf.find("dim");
+    if (iter == _conf.end()) {
+        return 0;
+    }
+
+    const auto &dim = iter.value();
+    if (!dim.is_number_unsigned()) {
+        throw Error("invalid dim");
+    }
+
+    return dim.get<std::size_t>();
 }
 
-void VectorStore::add(uint64_t id, const std::string_view &data, const Vector &embedding) {
-    if (embedding.size() != _opts.dim) {
-        throw Error("vector dimension does not match");
-    }
-
-    try {
-        _hnsw->addPoint(data.data(), id);
-    } catch (const std::exception &e) {
-        throw Error("failed to do set: " + std::to_string(id));
-    }
-
-    _data_store[id] = data;
+VectorStoreFactory::VectorStoreFactory() {
+    _register("hnsw", std::make_unique<VectorStoreCreatorTpl<Hnsw>>());
 }
 
-bool VectorStore::rem(uint64_t id) {
-    auto iter = _data_store.find(id);
-    if (iter == _data_store.end()) {
-        return false;
+VectorStoreUPtr VectorStoreFactory::create(const std::string &type, const nlohmann::json &conf, const std::string &llm) const {
+    auto iter = _creators.find(type);
+    if (iter == _creators.end()) {
+        throw Error(std::string("unknown vector store: ") + type);
     }
 
-    try {
-        _hnsw->markDelete(id);
-    } catch (const std::exception &e) {
-        throw Error("failed to delete: " + std::to_string(id) + ", err: " + e.what());
-    }
-
-    _data_store.erase(iter);
+    return iter->second->create(conf, llm);
 }
 
-std::optional<Vector> VectorStore::get(uint64_t id) {
-    try {
-        return _hnsw->getDataByLabel<float>(id);
-    } catch (const std::exception &e) {
-        // Fall through
+void VectorStoreFactory::_register(const std::string &type, VectorStoreCreatorUPtr creator) {
+    if (!_creators.emplace(type, std::move(creator)).second) {
+        throw Error("duplicate vector store creators");
     }
-
-    return std::nullopt;
-}
-
-std::optional<std::string> VectorStore::data(uint64_t id) {
-    auto iter = _data_store.find(id);
-    if (iter == _data_store.end()) {
-        return std::nullopt;
-    }
-
-    return iter->second;
-}
-
-std::vector<std::pair<uint64_t, float>> VectorStore::knn(const Vector &query, std::size_t k) {
-    std::vector<std::pair<uint64_t, float>> output;
-    try {
-        auto res = _hnsw->searchKnn(query.data(), k);
-        while (!res.empty()) {
-            auto &ele = res.top();
-            output.emplace_back(ele.second, ele.first);
-            res.pop();
-        }
-    } catch (const std::exception &e) {
-        throw Error("failed to do knn");
-    }
-
-    return output;
-}
-
-VectorStore::Options VectorStore::_parse_options(const nlohmann::json &conf) const {
-    Options opts;
-    try {
-        opts.dim = conf.at("dim").get<std::size_t>();
-        opts.max_elements = conf.value<std::size_t>("max_elements", 10000);
-        opts.m = conf.value<std::size_t>("m", 16);
-        opts.ef_construction = conf.value<std::size_t>("ef_construction", 200);
-    } catch (const nlohmann::json::exception &e) {
-        throw Error(std::string("failed to parse vector store options: ") + e.what());
-    }
-
-    return opts;
 }
 
 }

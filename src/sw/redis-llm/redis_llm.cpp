@@ -17,7 +17,7 @@
 #include "sw/redis-llm/redis_llm.h"
 #include <cassert>
 #include <string>
-#include "sw/redis-llm/application.h"
+//#include "sw/redis-llm/application.h"
 #include "sw/redis-llm/command.h"
 #include "sw/redis-llm/errors.h"
 #include "nlohmann/json.hpp"
@@ -45,19 +45,31 @@ RDBString rdb_load_string(RedisModuleIO *rdb);
 
 uint64_t rdb_load_number(RedisModuleIO *rdb);
 
-Application* rdb_load_application(RedisModuleIO *rdb);
-
 void rdb_save_string(RedisModuleIO *rdb, const std::string_view &str);
 
 void rdb_save_number(RedisModuleIO *rdb, uint64_t num);
 
 void rdb_save_vector(RedisModuleIO *rdb, const Vector &vec);
 
-void rdb_save_application(RedisModuleIO *rdb, Application &app);
+void* rdb_load_llm(RedisModuleIO *rdb);
 
-void rewrite_conf(RedisModuleIO *aof, RedisModuleString *key, const nlohmann::json &conf);
+void rdb_save_llm(RedisModuleIO *rdb, void *value);
 
-void rewrite_data(RedisModuleIO *aof, RedisModuleString *key, Application &app);
+void* rdb_load_app(RedisModuleIO *rdb);
+
+void rdb_save_app(RedisModuleIO *rdb, void *value);
+
+void rewrite_vector_store(RedisModuleIO *aof, RedisModuleString *key, VectorStore &store);
+
+void rdb_save_vector_store(RedisModuleIO *rdb, VectorStore &store);
+
+void rdb_load_vector_store(RedisModuleIO *rdb, VectorStore &store);
+
+void* rdb_load_vector_store(RedisModuleIO *rdb);
+
+void rdb_save_config(RedisModuleIO *rdb, const nlohmann::json &conf);
+
+nlohmann::json rdb_load_config(RedisModuleIO *rdb);
 
 }
 
@@ -81,28 +93,64 @@ void RedisLlm::load(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
     _options.load(argv, argc);
 
-    RedisModuleTypeMethods methods = {
+    RedisModuleTypeMethods llm_methods = {
         REDISMODULE_TYPE_METHOD_VERSION,
-        _rdb_load,
-        _rdb_save,
-        _aof_rewrite,
+        _rdb_load_llm,
+        _rdb_save_llm,
+        _aof_rewrite_llm,
         nullptr,
         nullptr,
-        _free_msg
+        _free_llm
     };
 
-    _module_type = RedisModule_CreateDataType(ctx,
-            type_name().data(),
+    _llm_module_type = RedisModule_CreateDataType(ctx,
+            llm_type_name().data(),
             encoding_version(),
-            &methods);
-    if (_module_type == nullptr) {
-        throw Error(std::string("failed to create ") + type_name() + " type");
+            &llm_methods);
+    if (_llm_module_type == nullptr) {
+        throw Error(std::string("failed to create ") + llm_type_name() + " type");
+    }
+
+    RedisModuleTypeMethods app_methods = {
+        REDISMODULE_TYPE_METHOD_VERSION,
+        _rdb_load_app,
+        _rdb_save_app,
+        _aof_rewrite_app,
+        nullptr,
+        nullptr,
+        _free_app
+    };
+
+    _app_module_type = RedisModule_CreateDataType(ctx,
+            app_type_name().data(),
+            encoding_version(),
+            &app_methods);
+    if (_app_module_type == nullptr) {
+        throw Error(std::string("failed to create ") + app_type_name() + " type");
+    }
+
+    RedisModuleTypeMethods vector_store_methods = {
+        REDISMODULE_TYPE_METHOD_VERSION,
+        _rdb_load_vector_store,
+        _rdb_save_vector_store,
+        _aof_rewrite_vector_store,
+        nullptr,
+        nullptr,
+        _free_vector_store
+    };
+
+    _vector_store_module_type = RedisModule_CreateDataType(ctx,
+            vector_store_type_name().data(),
+            encoding_version(),
+            &vector_store_methods);
+    if (_vector_store_module_type == nullptr) {
+        throw Error(std::string("failed to create ") + vector_store_type_name() + " type");
     }
 
     cmd::create_commands(ctx);
 }
 
-void* RedisLlm::_rdb_load(RedisModuleIO *rdb, int encver) {
+void* RedisLlm::_rdb_load_llm(RedisModuleIO *rdb, int encver) {
     try {
         assert(rdb != nullptr);
 
@@ -112,14 +160,14 @@ void* RedisLlm::_rdb_load(RedisModuleIO *rdb, int encver) {
             throw Error("cannot load data of version: " + std::to_string(encver));
         }
 
-        return rdb_load_application(rdb);
+        return rdb_load_llm(rdb);
     } catch (const Error &e) {
         RedisModule_LogIOError(rdb, "warning", e.what());
         return nullptr;
     }
 }
 
-void RedisLlm::_rdb_save(RedisModuleIO *rdb, void *value) {
+void RedisLlm::_rdb_save_llm(RedisModuleIO *rdb, void *value) {
     try {
         assert(rdb != nullptr);
 
@@ -127,15 +175,13 @@ void RedisLlm::_rdb_save(RedisModuleIO *rdb, void *value) {
             throw Error("null value to save");
         }
 
-        auto *app = static_cast<Application *>(value);
-
-        rdb_save_application(rdb, *app);
+        rdb_save_llm(rdb, value);
     } catch (const Error &e) {
         RedisModule_LogIOError(rdb, "warning", e.what());
     }
 }
 
-void RedisLlm::_aof_rewrite(RedisModuleIO *aof, RedisModuleString *key, void *value) {
+void RedisLlm::_aof_rewrite_llm(RedisModuleIO *aof, RedisModuleString *key, void *value) {
     try {
         assert(aof != nullptr);
 
@@ -143,21 +189,183 @@ void RedisLlm::_aof_rewrite(RedisModuleIO *aof, RedisModuleString *key, void *va
             throw Error("null key or value to rewrite aof");
         }
 
-        auto *app = static_cast<Application *>(value);
-        rewrite_conf(aof, key, app->conf());
+        auto *model = static_cast<LlmModel *>(value);
+        const auto &type = model->type();
+        std::string conf;
+        try {
+            conf = model->conf().dump();
+        } catch (const std::exception &e) {
+            throw Error(std::string("failed to dump LLM model conf: ") + e.what());
+        }
 
-        rewrite_data(aof, key, *app);
-
+        RedisModule_EmitAOF(aof,
+                "LLM.CREATE",
+                "cscbcb",
+                "LLM",
+                key,
+                "--TYPE",
+                type.data(),
+                type.size(),
+                "--PARAMS",
+                conf.data(),
+                conf.size());
     } catch (const Error &e) {
         RedisModule_LogIOError(aof, "warning", e.what());
     }
 }
 
-void RedisLlm::_free_msg(void *value) {
+void RedisLlm::_free_llm(void *value) {
+    if (value != nullptr) {
+        auto *llm = static_cast<LlmModel *>(value);
+        delete llm;
+    }
+}
+
+void* RedisLlm::_rdb_load_vector_store(RedisModuleIO *rdb, int encver) {
+    try {
+        assert(rdb != nullptr);
+
+        auto &m = RedisLlm::instance();
+
+        if (encver != m.encoding_version()) {
+            throw Error("cannot load data of version: " + std::to_string(encver));
+        }
+
+        return rdb_load_vector_store(rdb);
+    } catch (const Error &e) {
+        RedisModule_LogIOError(rdb, "warning", e.what());
+    }
+    return nullptr;
+}
+
+void RedisLlm::_rdb_save_vector_store(RedisModuleIO *rdb, void *value) {
+    try {
+        assert(rdb != nullptr);
+
+        if (value == nullptr) {
+            throw Error("null value to save");
+        }
+
+        auto *store = static_cast<VectorStore *>(value);
+        rdb_save_vector_store(rdb, *store);
+    } catch (const Error &e) {
+        RedisModule_LogIOError(rdb, "warning", e.what());
+    }
+}
+
+void RedisLlm::_aof_rewrite_vector_store(RedisModuleIO *aof, RedisModuleString *key, void *value) {
+    try {
+        assert(aof != nullptr);
+
+        if (key == nullptr || value == nullptr) {
+            throw Error("null key or value to rewrite aof");
+        }
+
+        auto *store = static_cast<VectorStore *>(value);
+        const auto &type = store->type();
+        std::string conf;
+        try {
+            conf = store->conf().dump();
+        } catch (const std::exception &e) {
+            throw Error(std::string("failed to dump LLM model conf: ") + e.what());
+        }
+
+        RedisModule_EmitAOF(aof,
+                "LLM.CREATE",
+                "cscbcb",
+                "VECTOR_STORE",
+                key,
+                "--TYPE",
+                type.data(),
+                type.size(),
+                "--PARAMS",
+                conf.data(),
+                conf.size());
+
+        rewrite_vector_store(aof, key, *store);
+    } catch (const Error &e) {
+        RedisModule_LogIOError(aof, "warning", e.what());
+    }
+}
+
+void RedisLlm::_free_vector_store(void *value) {
+    if (value != nullptr) {
+        auto *store = static_cast<VectorStore *>(value);
+        delete store;
+    }
+}
+
+void* RedisLlm::_rdb_load_app(RedisModuleIO *rdb, int encver) {
+    try {
+        assert(rdb != nullptr);
+
+        auto &m = RedisLlm::instance();
+
+        if (encver != m.encoding_version()) {
+            throw Error("cannot load data of version: " + std::to_string(encver));
+        }
+
+        return rdb_load_app(rdb);
+    } catch (const Error &e) {
+        RedisModule_LogIOError(rdb, "warning", e.what());
+    }
+    return nullptr;
+}
+
+void RedisLlm::_rdb_save_app(RedisModuleIO *rdb, void *value) {
+    try {
+        assert(rdb != nullptr);
+
+        if (value == nullptr) {
+            throw Error("null value to save");
+        }
+
+        rdb_save_app(rdb, value);
+    } catch (const Error &e) {
+        RedisModule_LogIOError(rdb, "warning", e.what());
+    }
+}
+
+void RedisLlm::_aof_rewrite_app(RedisModuleIO *aof, RedisModuleString *key, void *value) {
+    try {
+        assert(aof != nullptr);
+
+        if (key == nullptr || value == nullptr) {
+            throw Error("null key or value to rewrite aof");
+        }
+
+        auto *model = static_cast<LlmModel *>(value);
+        const auto &type = model->type();
+        std::string conf;
+        try {
+            conf = model->conf().dump();
+        } catch (const std::exception &e) {
+            throw Error(std::string("failed to dump LLM model conf: ") + e.what());
+        }
+
+        RedisModule_EmitAOF(aof,
+                "LLM.CREATE",
+                "cscbcb",
+                "LLM",
+                key,
+                "--TYPE",
+                type.data(),
+                type.size(),
+                "--PARAMS",
+                conf.data(),
+                conf.size());
+    } catch (const Error &e) {
+        RedisModule_LogIOError(aof, "warning", e.what());
+    }
+}
+
+void RedisLlm::_free_app(void *value) {
+    /*
     if (value != nullptr) {
         auto *app = static_cast<Application *>(value);
         delete app;
     }
+    */
 }
 
 }
@@ -166,8 +374,12 @@ namespace {
 
 using namespace sw::redis::llm;
 
-std::string_view to_sv(RDBString rdb_str) {
+std::string_view to_sv(RDBString &rdb_str) {
     return {rdb_str.str.get(), rdb_str.len};
+}
+
+std::string to_string(RDBString rdb_str) {
+    return std::string(to_sv(rdb_str));
 }
 
 RDBString rdb_load_string(RedisModuleIO *rdb) {
@@ -208,6 +420,20 @@ nlohmann::json rdb_load_config(RedisModuleIO *rdb) {
     return conf;
 }
 
+void rdb_save_llm(RedisModuleIO *rdb, void *value) {
+    auto *model = static_cast<LlmModel *>(value);
+    const auto &type = model->type();
+    std::string conf;
+    try {
+        conf = model->conf().dump();
+    } catch (const std::exception &e) {
+        throw Error(std::string("failed to dump LLM model conf: ") + e.what());
+    }
+
+    rdb_save_string(rdb, type);
+    rdb_save_string(rdb, conf);
+}
+
 void rdb_save_config(RedisModuleIO *rdb, const nlohmann::json &conf) {
     std::string config;
     try {
@@ -233,102 +459,69 @@ void rdb_save_vector(RedisModuleIO *rdb, const Vector &vec) {
     }
 }
 
-void rdb_save_data_store(RedisModuleIO *rdb, Application &app) {
-    const auto &data_store = app.data_store();
-    auto &vector_store = app.vector_store();
+void rdb_save_vector_store(RedisModuleIO *rdb, VectorStore &store) {
+    rdb_save_string(rdb, store.type());
+    rdb_save_config(rdb, store.conf());
+    rdb_save_string(rdb, store.llm());
+
+    const auto &data_store = store.data_store();
     rdb_save_number(rdb, data_store.size());
-    rdb_save_number(rdb, app.dim());
 
     for (auto &[id, data] : data_store) {
         rdb_save_number(rdb, id);
         rdb_save_string(rdb, data);
 
-        auto vec = vector_store.get(id);
+        auto vec = store.get(id);
         // TODO: is it possible that vec is nullopt?
         rdb_save_vector(rdb, *vec);
     }
 }
 
-void rdb_save_application(RedisModuleIO *rdb, Application &app) {
-    rdb_save_config(rdb, app.conf());
-
-    rdb_save_data_store(rdb, app);
+void rdb_save_app(RedisModuleIO *rdb, void *value) {
 }
 
-auto parse_config(const nlohmann::json &config) ->
-    std::tuple<nlohmann::json, nlohmann::json, nlohmann::json > {
-    auto iter = config.find("llm");
-    if (iter == config.end()) {
-        throw Error("no llm config");
-    }
-    auto llm_config = iter.value();
-
-    nlohmann::json embedding_config;
-    iter = config.find("embedding");
-    if (iter != config.end()) {
-        embedding_config = iter.value();
-    }
-
-    nlohmann::json vector_store_config;
-    iter = config.find("vector_store");
-    if (iter != config.end()) {
-        vector_store_config = iter.value();
-    }
-
-    return {std::move(llm_config), std::move(embedding_config), std::move(vector_store_config)};
-}
-
-auto rdb_load_data_store(RedisModuleIO *rdb) ->
-    std::unordered_map<uint64_t, std::pair<std::string, Vector>> {
-    std::unordered_map<uint64_t, std::pair<std::string, Vector>> data_store;
+void rdb_load_vector_store(RedisModuleIO *rdb, VectorStore &store) {
+    auto dim = store.dim();
     auto size = rdb_load_number(rdb);
-    auto dim = rdb_load_number(rdb);
     for (auto idx = 0UL; idx < size; ++idx) {
         auto id = rdb_load_number(rdb);
-        auto val = to_sv(rdb_load_string(rdb));
+        auto val = to_string(rdb_load_string(rdb));
         auto vec = rdb_load_vector(rdb, dim);
-        data_store.emplace(id, std::make_pair(val, std::move(vec)));
+        store.add(id, val, std::move(vec));
     }
-
-    return data_store;
 }
 
-Application* rdb_load_application(RedisModuleIO *rdb) {
-    auto config = rdb_load_config(rdb);
-    auto [llm_config, embedding_config, vector_store_config] = parse_config(config);
+void* rdb_load_llm(RedisModuleIO *rdb) {
+    auto &llm = RedisLlm::instance();
+    auto type = to_string(rdb_load_string(rdb));;
+    auto conf = rdb_load_config(rdb);
 
-    auto data_store = rdb_load_data_store(rdb);
+    auto model = llm.llm_factory().create(type, conf);
 
-    return new Application(llm_config,
-            embedding_config,
-            vector_store_config,
-            std::move(data_store));
+    return model.release();
 }
 
-void rewrite_conf(RedisModuleIO *aof, RedisModuleString *key, const nlohmann::json &conf) {
-    auto llm_config = conf.at("llm").dump();
-    auto embedding_config = conf.at("embedding").dump();
-    auto vector_store_config = conf.at("vector_store").dump();
-
-    RedisModule_EmitAOF(aof,
-            "LLM.CREATE",
-            "scbcbcb",
-            key,
-            "--LLM",
-            llm_config.data(),
-            llm_config.size(),
-            "--EMBEDDING",
-            embedding_config.data(),
-            embedding_config.size(),
-            "--VECTOR_STORE",
-            vector_store_config.data(),
-            vector_store_config.size());
+void* rdb_load_app(RedisModuleIO *rdb) {
+    return nullptr;
 }
 
-void rewrite_data(RedisModuleIO *aof, RedisModuleString *key, Application &app) {
-    const auto &data_store = app.data_store();
+void* rdb_load_vector_store(RedisModuleIO *rdb) {
+    auto &llm = RedisLlm::instance();
+    std::string type = to_string(rdb_load_string(rdb));
+    auto conf = rdb_load_config(rdb);
+    std::string llm_key = to_string(rdb_load_string(rdb));
+
+    auto store = llm.vector_store_factory().create(type, conf, llm_key);
+
+    rdb_load_vector_store(rdb, *store);
+
+    return store.release();
+}
+
+void rewrite_vector_store(RedisModuleIO *aof, RedisModuleString *key, VectorStore &store) {
+    const auto &data_store = store.data_store();
     for (auto &[id, data] : data_store) {
-        auto vec = app.embedding(id);
+        auto vec = store.get(id);
         if (!vec) {
             // TODO: this should not happen
             continue;

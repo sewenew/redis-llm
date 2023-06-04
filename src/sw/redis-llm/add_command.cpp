@@ -15,7 +15,7 @@
  *************************************************************************/
 
 #include "sw/redis-llm/add_command.h"
-#include "sw/redis-llm/application.h"
+#include "sw/redis-llm/llm_model.h"
 #include "sw/redis-llm/module_api.h"
 #include "sw/redis-llm/redis_llm.h"
 #include "sw/redis-llm/utils.h"
@@ -37,22 +37,52 @@ void AddCommand::_add(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) c
     assert(key);
 
     auto &llm = RedisLlm::instance();
-    if (!api::key_exists(key.get(), llm.type())) {
+    if (!api::key_exists(key.get(), llm.vector_store_type())) {
         throw Error("key does not exist, call LLM.CREATE first");
     }
 
-    auto *app = api::get_value_by_key<Application>(*key);
-    assert(app != nullptr);
+    auto *store = api::get_value_by_key<VectorStore>(*key);
+    assert(store != nullptr);
 
-    if (args.with_embedding) {
-        if (app->dim() != args.embedding.size()) {
+    if (!args.embedding.empty()) {
+        if (store->dim() != args.embedding.size()) {
             throw Error("embedding dimension not match");
         }
 
-        app->add(args.id, args.data, args.embedding);
+        store->add(args.id, args.data, args.embedding);
     } else {
-        app->add(args.id, args.data);
+        const auto &llm_key = store->llm();
+        if (llm_key.empty()) {
+            throw Error("no llm is specified for vector store");
+        }
+
+        auto embedding = _get_embedding(ctx, args.data, llm_key);
+        store->add(args.id, args.data, embedding);
     }
+}
+
+Vector AddCommand::_get_embedding(RedisModuleCtx *ctx, const std::string_view &data, const std::string &llm_key) const {
+    LlmModel *model = nullptr;
+    auto *key_str = RedisModule_CreateString(ctx, llm_key.data(), llm_key.size());
+    try {
+        auto key = api::open_key(ctx, key_str, api::KeyMode::READONLY);
+        assert(key);
+
+        RedisModule_FreeString(ctx, key_str);
+
+        auto &llm = RedisLlm::instance();
+        if (!api::key_exists(key.get(), llm.llm_type())) {
+            throw Error("LLM model does not exist, call LLM.CREATE first");
+        }
+
+        model = api::get_value_by_key<LlmModel>(*key);
+        assert(model != nullptr);
+    } catch (const Error &) {
+        RedisModule_FreeString(ctx, key_str);
+        throw;
+    }
+
+    return model->embedding(data);
 }
 
 AddCommand::Args AddCommand::_parse_args(RedisModuleString **argv, int argc) const {
@@ -68,8 +98,12 @@ AddCommand::Args AddCommand::_parse_args(RedisModuleString **argv, int argc) con
     auto idx = 2;
     while (idx < argc) {
         auto opt = util::to_sv(argv[idx]);
-        if (util::str_case_equal(opt, "--WITHEMBEDDING")) {
-            args.with_embedding = true;
+        if (util::str_case_equal(opt, "--LLM")) {
+            if (idx + 1 >= argc) {
+                throw Error("syntax error");
+            }
+            ++idx;
+            args.llm = util::to_sv(argv[idx]);
         } else {
             break;
         }
@@ -77,20 +111,23 @@ AddCommand::Args AddCommand::_parse_args(RedisModuleString **argv, int argc) con
         ++idx;
     }
 
-    if ((args.with_embedding && argc != 6) ||
-            (!args.with_embedding && argc != 4)) {
+    if ((args.llm.empty() && argc != 5) ||
+            (!args.llm.empty() && argc != 6)) {
         throw WrongArityError();
     }
 
     try {
-        args.id = std::stoul(std::string(util::to_sv(argv[idx++])));
+        args.id = std::stoul(util::to_string(argv[idx++]));
     } catch (const std::exception &e) {
         throw Error("invalid id");
     }
 
     args.data = util::to_sv(argv[idx++]);
 
-    if (args.with_embedding) {
+    if (args.llm.empty()) {
+        if (idx == argc) {
+            throw WrongArityError();
+        }
         std::vector<std::string_view> vec;
         util::split(util::to_sv(argv[idx++]), ",", std::back_inserter(vec));
         Vector embedding;

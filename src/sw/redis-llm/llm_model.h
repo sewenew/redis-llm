@@ -28,6 +28,8 @@ namespace sw::redis::llm {
 
 class LlmModel {
 public:
+    LlmModel() = default;
+
     explicit LlmModel(const std::string &type, const nlohmann::json &conf) : _type(type), _conf(conf) {}
 
     virtual ~LlmModel() = default;

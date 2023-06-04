@@ -15,9 +15,9 @@
  *************************************************************************/
 
 #include "sw/redis-llm/rem_command.h"
-#include "sw/redis-llm/application.h"
 #include "sw/redis-llm/module_api.h"
 #include "sw/redis-llm/redis_llm.h"
+#include "sw/redis-llm/vector_store.h"
 #include "sw/redis-llm/utils.h"
 
 namespace sw::redis::llm {
@@ -37,12 +37,12 @@ int RemCommand::_rem(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) co
     assert(key);
 
     auto &llm = RedisLlm::instance();
-    if (!api::key_exists(key.get(), llm.type())) {
+    if (!api::key_exists(key.get(), llm.vector_store_type())) {
         return 0;
     }
 
-    auto *app = api::get_value_by_key<Application>(*key);
-    if (app->rem(args.id)) {
+    auto *store = api::get_value_by_key<VectorStore>(*key);
+    if (store->rem(args.id)) {
         return 1;
     } else {
         return 0;

@@ -23,6 +23,7 @@
 
 namespace sw::redis::llm {
 
+// LLM.ADD key [--llm xxx] id data [embedding]
 class AddCommand : public Command {
 private:
     virtual void _run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const override;
@@ -30,7 +31,7 @@ private:
     struct Args {
         RedisModuleString *key_name = nullptr;
 
-        bool with_embedding = false;
+        std::string llm;
 
         uint64_t id;
 
@@ -40,6 +41,8 @@ private:
     };
 
     Args _parse_args(RedisModuleString **argv, int argc) const;
+
+    Vector _get_embedding(RedisModuleCtx *ctx, const std::string_view &data, const std::string &llm_key) const;
 
     void _add(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const;
 };

@@ -22,54 +22,87 @@
 #include <unordered_map>
 #include <utility>
 #include "nlohmann/json.hpp"
-#include <hnswlib/hnswlib.h>
 #include "sw/redis-llm/utils.h"
 
 namespace sw::redis::llm {
 
 class VectorStore {
 public:
-    explicit VectorStore(const nlohmann::json &conf);
+    VectorStore(const std::string &type, const nlohmann::json &conf, const std::string &llm) :
+        _type(type), _conf(conf), _llm(llm) {}
 
-    void add(uint64_t id, const std::string_view &data, const Vector &embedding);
+    virtual ~VectorStore() = default;
+
+    virtual void add(uint64_t id, const std::string_view &data, const Vector &embedding) = 0;
 
     // @return false, if data does not exist. true, otherwise.
-    bool rem(uint64_t id);
+    virtual bool rem(uint64_t id) = 0;
 
-    std::optional<Vector> get(uint64_t id);
+    virtual std::optional<Vector> get(uint64_t id) = 0;
 
-    std::optional<std::string> data(uint64_t id);
+    virtual std::optional<std::string> data(uint64_t id) = 0;
 
-    std::vector<std::pair<uint64_t, float>> knn(const Vector &query, std::size_t k);
+    virtual std::vector<std::pair<uint64_t, float>> knn(const Vector &query, std::size_t k) = 0;
+
+    const std::string& type() const {
+        return _type;
+    }
 
     const nlohmann::json& conf() const {
         return _conf;
     }
 
-    std::size_t dim() const {
-        return _opts.dim;
+    const std::string& llm() const {
+        return _llm;
     }
 
-private:
-    struct Options {
-        std::size_t dim;
-        std::size_t max_elements = 10000;
-        std::size_t m = 16;
-        std::size_t ef_construction = 200;
-    };
+    std::size_t dim() const;
 
-    Options _parse_options(const nlohmann::json &conf) const;
+    const std::unordered_map<uint64_t, std::string>& data_store() const {
+        return _data_store;
+    }
+
+protected:
+    std::unordered_map<uint64_t, std::string> _data_store;
+
+private:
+    std::string _type;
 
     nlohmann::json _conf;
 
-    Options _opts;
-
-    std::unique_ptr<hnswlib::SpaceInterface<float>> _space;
-    std::unique_ptr<hnswlib::HierarchicalNSW<float>> _hnsw;
-
-    std::unordered_map<uint64_t, std::string> _data_store;
+    std::string _llm;
 };
 
+using VectorStoreUPtr = std::unique_ptr<VectorStore>;
+
+class VectorStoreCreator {
+public:
+    virtual ~VectorStoreCreator() = default;
+
+    virtual VectorStoreUPtr create(const nlohmann::json &conf, const std::string &llm) const = 0;
+};
+
+using VectorStoreCreatorUPtr = std::unique_ptr<VectorStoreCreator>;
+
+template <typename T>
+class VectorStoreCreatorTpl : public VectorStoreCreator {
+public:
+    virtual VectorStoreUPtr create(const nlohmann::json &conf, const std::string &llm) const {
+        return std::make_unique<T>(conf, llm);
+    }
+};
+
+class VectorStoreFactory {
+public:
+    VectorStoreFactory();
+
+    VectorStoreUPtr create(const std::string &type, const nlohmann::json &conf, const std::string &llm) const;
+
+private:
+    void _register(const std::string &type, VectorStoreCreatorUPtr creator);
+
+    std::unordered_map<std::string, VectorStoreCreatorUPtr> _creators;
+};
 }
 
 #endif // end SEWENEW_REDIS_LLM_VECTOR_STORE_H

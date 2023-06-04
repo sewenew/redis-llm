@@ -15,8 +15,8 @@
  *************************************************************************/
 
 #include "sw/redis-llm/get_command.h"
-#include "sw/redis-llm/application.h"
 #include "sw/redis-llm/redis_llm.h"
+#include "sw/redis-llm/vector_store.h"
 #include "sw/redis-llm/utils.h"
 
 namespace sw::redis::llm {
@@ -43,17 +43,17 @@ auto GetCommand::_get(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) c
     assert(key);
 
     auto &llm = RedisLlm::instance();
-    if (!api::key_exists(key.get(), llm.type())) {
+    if (!api::key_exists(key.get(), llm.vector_store_type())) {
         return std::nullopt;
     }
 
-    auto *app = api::get_value_by_key<Application>(*key);
-    auto data = app->get(args.id);
+    auto *store = api::get_value_by_key<VectorStore>(*key);
+    auto data = store->data(args.id);
     if (!data) {
         return std::nullopt;
     }
 
-    auto embedding = app->embedding(args.id);
+    auto embedding = store->get(args.id);
     if (!embedding) {
         return std::nullopt;
     }

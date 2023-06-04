@@ -54,6 +54,16 @@ std::vector<std::string_view> to_sv(RedisModuleString **argv, int argc) {
     return args;
 }
 
+std::string to_string(RedisModuleString *str) {
+    if (str == nullptr) {
+        throw Error("null string");
+    }
+
+    std::size_t len = 0;
+    auto *data = RedisModule_StringPtrLen(str, &len);
+    return {data, len};
+}
+
 bool str_case_equal(const std::string_view &s1, const std::string_view &s2) {
     if (s1.size() != s2.size()) {
         return false;

@@ -15,8 +15,9 @@
  *************************************************************************/
 
 #include "sw/redis-llm/create_command.h"
-#include "sw/redis-llm/application.h"
+//#include "sw/redis-llm/application.h"
 #include "sw/redis-llm/create_llm_command.h"
+#include "sw/redis-llm/create_vector_store_command.h"
 #include "sw/redis-llm/module_api.h"
 #include "sw/redis-llm/redis_llm.h"
 #include "sw/redis-llm/utils.h"
@@ -39,7 +40,7 @@ int CreateCommand::_create(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
     assert(key);
 
     auto &llm = RedisLlm::instance();
-    if (api::key_exists(key.get(), llm.type())) {
+    if (api::key_exists(key.get(), llm.llm_type())) {
         if (args.opt == Args::Opt::NX) {
             return 0;
         }
@@ -58,27 +59,20 @@ int CreateCommand::_create(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
 
     switch (args.sub_cmd) {
     case SubCmd::LLM: {
-        CreateLlmCommand cmd;
+        CreateLlmCommand cmd(*key);
         cmd.run(ctx, sub_cmd_argv, sub_cmd_argc);
         break;
     }
 
-    case SubCmd::APP:
+    case SubCmd::VECTOR_STORE: {
+        CreateVectorStoreCommand cmd(*key);
+        cmd.run(ctx, sub_cmd_argv, sub_cmd_argc);
         break;
+    }
 
     default:
-        break;
+        throw Error("unsupported sub command");
     }
-
-    /*
-    auto app = std::make_unique<Application>(args.llm_config,
-                args.embedding_config,
-                args.vector_store_config);
-    if (RedisModule_ModuleTypeSetValue(key.get(), llm.type(), app.get()) != REDISMODULE_OK) {
-        throw Error("failed to create LLM application");
-    }
-    app.release();
-    */
 
     return 1;
 }
@@ -110,7 +104,7 @@ CreateCommand::SubCmd CreateCommand::_parse_sub_cmd(const std::string_view &opt)
         return SubCmd::LLM;
     } else if (util::str_case_equal(opt, "EMBEDDING")) {
         return SubCmd::EMBEDDING;
-    } else if (util::str_case_equal(opt, "VECTORE_STORE")) {
+    } else if (util::str_case_equal(opt, "VECTOR_STORE")) {
         return SubCmd::VECTOR_STORE;
     } else if (util::str_case_equal(opt, "PROMPT")) {
         return SubCmd::PROMPT;
