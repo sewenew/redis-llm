@@ -90,18 +90,24 @@ OpenAi::Options OpenAi::_parse_options(const nlohmann::json &conf) const {
     Options opts;
     try {
         opts.api_key = conf.at("api_key").get<std::string>();
+        opts.chat["model"] = "gpt-3.5-turbo";
+        opts.embedding["model"] = "text-embedding-ada-002";
+        /*
         auto iter = conf.find("chat");
         if (iter != conf.end()) {
             opts.chat = iter.value();
         }
+        */
         opts.chat_uri = conf.value<std::string>("chat_uri", "/v1/chat/completions");
+        /*
         iter = conf.find("embedding");
         if (iter != conf.end()) {
             opts.embedding = iter.value();
         }
+        */
         opts.embedding_uri = conf.value<std::string>("embedding_uri", "/v1/embeddings");
     } catch (const nlohmann::json::exception &e) {
-        throw Error(std::string("failed to parse openai options: ") + e.what());
+        throw Error(std::string("failed to parse openai options: ") + e.what() + ":" + conf.dump());
     }
 
     return opts;

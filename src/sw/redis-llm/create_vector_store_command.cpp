@@ -59,6 +59,8 @@ CreateVectorStoreCommand::Args CreateVectorStoreCommand::_parse_args(RedisModule
         } else {
             break;
         }
+
+        ++idx;
     }
 
     if (args.type.empty()) {

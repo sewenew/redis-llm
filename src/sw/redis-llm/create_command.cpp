@@ -36,11 +36,36 @@ void CreateCommand::_run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
 int CreateCommand::_create(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const {
     auto args = _parse_args(argv, argc);
 
+    auto *sub_cmd_argv = argv + 3;
+    auto sub_cmd_argc = argc - 3;
+    if (args.opt != Args::Opt::NONE) {
+        ++sub_cmd_argv;
+        --sub_cmd_argc;
+    }
+
     auto key = api::open_key(ctx, args.key_name, api::KeyMode::WRITEONLY);
     assert(key);
 
     auto &llm = RedisLlm::instance();
-    if (api::key_exists(key.get(), llm.llm_type())) {
+
+    std::unique_ptr<Command> sub_cmd;
+    RedisModuleType *module_type = nullptr;
+    switch (args.sub_cmd) {
+    case SubCmd::LLM:
+        sub_cmd = std::make_unique<CreateLlmCommand>(*key);
+        module_type = llm.llm_type();
+        break;
+
+    case SubCmd::VECTOR_STORE:
+        sub_cmd = std::make_unique<CreateVectorStoreCommand>(*key);
+        module_type = llm.vector_store_type();
+        break;
+
+    default:
+        throw Error("unsupported sub command");
+    }
+
+    if (api::key_exists(key.get(), module_type)) {
         if (args.opt == Args::Opt::NX) {
             return 0;
         }
@@ -50,29 +75,7 @@ int CreateCommand::_create(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
         }
     }
 
-    auto *sub_cmd_argv = argv + 3;
-    auto sub_cmd_argc = argc - 3;
-    if (args.opt != Args::Opt::NONE) {
-        ++sub_cmd_argv;
-        --sub_cmd_argc;
-    }
-
-    switch (args.sub_cmd) {
-    case SubCmd::LLM: {
-        CreateLlmCommand cmd(*key);
-        cmd.run(ctx, sub_cmd_argv, sub_cmd_argc);
-        break;
-    }
-
-    case SubCmd::VECTOR_STORE: {
-        CreateVectorStoreCommand cmd(*key);
-        cmd.run(ctx, sub_cmd_argv, sub_cmd_argc);
-        break;
-    }
-
-    default:
-        throw Error("unsupported sub command");
-    }
+    sub_cmd->run(ctx, sub_cmd_argv, sub_cmd_argc);
 
     return 1;
 }

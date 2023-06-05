@@ -95,41 +95,17 @@ AddCommand::Args AddCommand::_parse_args(RedisModuleString **argv, int argc) con
     Args args;
     args.key_name = argv[1];
 
-    auto idx = 2;
-    while (idx < argc) {
-        auto opt = util::to_sv(argv[idx]);
-        if (util::str_case_equal(opt, "--LLM")) {
-            if (idx + 1 >= argc) {
-                throw Error("syntax error");
-            }
-            ++idx;
-            args.llm = util::to_sv(argv[idx]);
-        } else {
-            break;
-        }
-
-        ++idx;
-    }
-
-    if ((args.llm.empty() && argc != 5) ||
-            (!args.llm.empty() && argc != 6)) {
-        throw WrongArityError();
-    }
-
     try {
-        args.id = std::stoul(util::to_string(argv[idx++]));
+        args.id = std::stoul(util::to_string(argv[2]));
     } catch (const std::exception &e) {
         throw Error("invalid id");
     }
 
-    args.data = util::to_sv(argv[idx++]);
+    args.data = util::to_sv(argv[3]);
 
-    if (args.llm.empty()) {
-        if (idx == argc) {
-            throw WrongArityError();
-        }
+    if (argc == 5) {
         std::vector<std::string_view> vec;
-        util::split(util::to_sv(argv[idx++]), ",", std::back_inserter(vec));
+        util::split(util::to_sv(argv[4]), ",", std::back_inserter(vec));
         Vector embedding;
         embedding.reserve(vec.size());
         for (auto &ele : vec) {

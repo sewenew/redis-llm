@@ -53,6 +53,8 @@ CreateLlmCommand::Args CreateLlmCommand::_parse_args(RedisModuleString **argv, i
         } else {
             break;
         }
+
+        ++idx;
     }
 
     return args;

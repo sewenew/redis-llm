@@ -30,7 +30,7 @@ void Hnsw::add(uint64_t id, const std::string_view &data, const Vector &embeddin
     }
 
     try {
-        _hnsw->addPoint(data.data(), id);
+        _hnsw->addPoint(embedding.data(), id);
     } catch (const std::exception &e) {
         throw Error("failed to do set: " + std::to_string(id));
     }

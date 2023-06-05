@@ -23,15 +23,13 @@
 
 namespace sw::redis::llm {
 
-// LLM.ADD key [--llm xxx] id data [embedding]
+// LLM.ADD key id data [embedding]
 class AddCommand : public Command {
 private:
     virtual void _run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const override;
 
     struct Args {
         RedisModuleString *key_name = nullptr;
-
-        std::string llm;
 
         uint64_t id;
 
