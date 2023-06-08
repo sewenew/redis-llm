@@ -15,97 +15,39 @@
  *************************************************************************/
 
 #include "sw/redis-llm/application.h"
-#include "sw/redis-llm/redis_llm.h"
+#include <cassert>
+#include "sw/redis-llm/errors.h"
+#include "sw/redis-llm/simple_application.h"
 
 namespace sw::redis::llm {
 
-Application::Application(const nlohmann::json &llm_config,
-        const nlohmann::json &embedding_config,
-        const nlohmann::json &vector_store_config) {
-    auto &llm = RedisLlm::instance();
+Application::Application(const std::string &type,
+        const nlohmann::json &llm,
+        const std::string &prompt,
+        const nlohmann::json &conf) :
+    _type(type), _llm(llm), _prompt(std::make_unique<Prompt>(prompt)), _conf(conf) {
+}
 
-    _llm = llm.llm_factory().create("", llm_config);
+ApplicationFactory::ApplicationFactory() {
+    _register("app", std::make_unique<ApplicationCreatorTpl<SimpleApplication>>());
+}
 
-    if (!embedding_config.empty()) {
-        _embedding = llm.embedding_factory().create("", embedding_config);
+ApplicationUPtr ApplicationFactory::create(const std::string &type,
+        const nlohmann::json &llm,
+        const std::string &prompt,
+        const nlohmann::json &conf) const {
+    auto iter = _creators.find(type);
+    if (iter == _creators.end()) {
+        throw Error(std::string("unknown application model: ") + type);
     }
 
-    _vector_store = std::make_unique<VectorStore>(vector_store_config);
+    return iter->second->create(type, llm, prompt, conf);
 }
 
-Application::Application(const nlohmann::json &llm_config,
-        const nlohmann::json &embedding_config,
-        const nlohmann::json &vector_store_config,
-        std::unordered_map<uint64_t, std::pair<std::string, Vector>> data_store) :
-    Application(llm_config, embedding_config, vector_store_config) {
-    for (auto &[id, data] : data_store) {
-        _vector_store->add(id, data.first, data.second);
+void ApplicationFactory::_register(const std::string &type, ApplicationCreatorUPtr creator) {
+    if (!_creators.emplace(type, std::move(creator)).second) {
+        throw Error("duplicate application creators");
     }
-}
-
-std::string Application::ask(const std::string_view &question, bool without_private_data) {
-    if (without_private_data) {
-        return _llm->predict(question);
-    }
-
-    return _ask(question);
-}
-
-nlohmann::json Application::conf() const {
-    nlohmann::json config;
-    config["llm"] = _llm->conf();
-
-    if (_embedding) {
-        config["embedding"] = _embedding->conf();
-    }
-
-    config["vector_store"] = _vector_store->conf();
-
-    return config;
-}
-
-void Application::add(uint64_t id, const std::string_view &data) {
-    Vector embedding;
-    if (_embedding) {
-        embedding = _embedding->embedding(data);
-    } else {
-        embedding = _llm->embedding(data);
-    }
-
-    _vector_store->add(id, data, embedding);
-}
-
-void Application::add(uint64_t id, const std::string_view &data, const Vector &embedding) {
-    _vector_store->add(id, data, embedding);
-}
-
-bool Application::rem(uint64_t id) {
-    return _vector_store->rem(id);
-}
-
-std::optional<std::string> Application::get(uint64_t id) {
-    return _vector_store->data(id);
-}
-
-std::optional<Vector> Application::embedding(uint64_t id) {
-    return _vector_store->get(id);
-}
-
-std::string Application::_ask(const std::string_view &question) {
-    auto context = _search_private_data(question);
-
-    auto input = _build_llm_input(question, context);
-
-    return _llm->predict(input);
-}
-
-std::vector<std::string> Application::_search_private_data(const std::string_view &question) {
-    return {};
-}
-
-std::string Application::_build_llm_input(const std::string_view &question,
-        const std::vector<std::string> &context) {
-    return "";
 }
 
 }

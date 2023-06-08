@@ -28,9 +28,7 @@ namespace sw::redis::llm {
 
 class LlmModel {
 public:
-    LlmModel() = default;
-
-    explicit LlmModel(const std::string &type, const nlohmann::json &conf) : _type(type), _conf(conf) {}
+    LlmModel(const std::string &type, const nlohmann::json &conf) : _type(type), _conf(conf) {}
 
     virtual ~LlmModel() = default;
 
@@ -66,7 +64,7 @@ using LlmModelCreatorUPtr = std::unique_ptr<LlmModelCreator>;
 template <typename T>
 class LlmModelCreatorTpl : public LlmModelCreator {
 public:
-    virtual LlmModelUPtr create(const std::string &type, const nlohmann::json &conf) const {
+    virtual LlmModelUPtr create(const std::string &type, const nlohmann::json &conf) const override {
         return std::make_unique<T>(conf);
     }
 };

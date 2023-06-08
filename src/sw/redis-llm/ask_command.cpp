@@ -35,7 +35,7 @@ std::string AskCommand::_ask(RedisModuleCtx *ctx, RedisModuleString **argv, int 
     assert(key);
 
     auto &llm = RedisLlm::instance();
-    if (!api::key_exists(key.get(), llm.type())) {
+    if (!api::key_exists(key.get(), llm.llm_type())) {
         throw Error("key does not exist, call LLM.CREATE first");
     }
 

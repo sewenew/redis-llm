@@ -17,9 +17,10 @@
 #ifndef SEWENEW_REDIS_LLM_REDIS_LLM_H
 #define SEWENEW_REDIS_LLM_REDIS_LLM_H
 
-#include "sw/redis-llm/module_api.h"
-#include "sw/redis-llm/llm_model.h"
+#include "sw/redis-llm/application.h"
 #include "sw/redis-llm/embedding_model.h"
+#include "sw/redis-llm/llm_model.h"
+#include "sw/redis-llm/module_api.h"
 #include "sw/redis-llm/options.h"
 #include "sw/redis-llm/vector_store.h"
 
@@ -89,6 +90,10 @@ public:
         return _vector_store_factory;
     }
 
+    ApplicationFactory& app_factory() {
+        return _app_factory;
+    }
+
 private:
     RedisLlm() = default;
 
@@ -122,15 +127,15 @@ private:
 
     const std::string _MODULE_NAME = "LLM";
 
-    const std::string _LLM_TYPE_NAME = "REDLLM-SW";
+    const std::string _LLM_TYPE_NAME = "LLMMOD-SW";
 
     RedisModuleType *_llm_module_type = nullptr;
 
-    const std::string _APP_TYPE_NAME = "REDAPP-SW";
+    const std::string _APP_TYPE_NAME = "LLMAPP-SW";
 
     RedisModuleType *_app_module_type = nullptr;
 
-    const std::string _VECTOR_STORE_TYPE_NAME = "REDVEC-SW";
+    const std::string _VECTOR_STORE_TYPE_NAME = "LLMVEC-SW";
 
     RedisModuleType *_vector_store_module_type = nullptr;
 
@@ -141,6 +146,8 @@ private:
     EmbeddingModelFactory _embedding_factory;
 
     VectorStoreFactory _vector_store_factory;
+
+    ApplicationFactory _app_factory;
 };
 
 }

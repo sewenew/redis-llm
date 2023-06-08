@@ -64,7 +64,7 @@ using EmbeddingModelCreatorUPtr = std::unique_ptr<EmbeddingModelCreator>;
 template <typename T>
 class EmbeddingModelCreatorTpl : public EmbeddingModelCreator {
 public:
-    virtual EmbeddingModelUPtr create(const std::string &type, const nlohmann::json &conf) const {
+    virtual EmbeddingModelUPtr create(const std::string &type, const nlohmann::json &conf) const override {
         return std::make_unique<T>(conf);
     }
 };

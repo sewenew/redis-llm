@@ -17,7 +17,6 @@
 #include "sw/redis-llm/redis_llm.h"
 #include <cassert>
 #include <string>
-//#include "sw/redis-llm/application.h"
 #include "sw/redis-llm/command.h"
 #include "sw/redis-llm/errors.h"
 #include "nlohmann/json.hpp"
@@ -334,23 +333,32 @@ void RedisLlm::_aof_rewrite_app(RedisModuleIO *aof, RedisModuleString *key, void
             throw Error("null key or value to rewrite aof");
         }
 
-        auto *model = static_cast<LlmModel *>(value);
-        const auto &type = model->type();
+        auto *app = static_cast<Application *>(value);
+        const auto &type = app->type();
+        auto prompt = app->prompt().dump();
+        std::string llm;
         std::string conf;
         try {
-            conf = model->conf().dump();
+            llm = app->llm().dump();
+            conf = app->conf().dump();
         } catch (const std::exception &e) {
-            throw Error(std::string("failed to dump LLM model conf: ") + e.what());
+            throw Error(std::string("failed to dump app conf: ") + e.what());
         }
 
         RedisModule_EmitAOF(aof,
                 "LLM.CREATE",
-                "cscbcb",
-                "LLM",
+                "cscbcbcbcb",
+                "APP",
                 key,
                 "--TYPE",
                 type.data(),
                 type.size(),
+                "--LLM",
+                llm.data(),
+                llm.size(),
+                "--PROMPT",
+                prompt.data(),
+                prompt.size(),
                 "--PARAMS",
                 conf.data(),
                 conf.size());
@@ -360,12 +368,10 @@ void RedisLlm::_aof_rewrite_app(RedisModuleIO *aof, RedisModuleString *key, void
 }
 
 void RedisLlm::_free_app(void *value) {
-    /*
     if (value != nullptr) {
         auto *app = static_cast<Application *>(value);
         delete app;
     }
-    */
 }
 
 }
@@ -478,6 +484,12 @@ void rdb_save_vector_store(RedisModuleIO *rdb, VectorStore &store) {
 }
 
 void rdb_save_app(RedisModuleIO *rdb, void *value) {
+    auto *app = static_cast<Application *>(value);
+
+    rdb_save_string(rdb, app->type());
+    rdb_save_config(rdb, app->llm());
+    rdb_save_string(rdb, app->prompt().dump());
+    rdb_save_config(rdb, app->conf());
 }
 
 void rdb_load_vector_store(RedisModuleIO *rdb, VectorStore &store) {
@@ -502,7 +514,14 @@ void* rdb_load_llm(RedisModuleIO *rdb) {
 }
 
 void* rdb_load_app(RedisModuleIO *rdb) {
-    return nullptr;
+    auto type = to_string(rdb_load_string(rdb));
+    auto llm = rdb_load_config(rdb);
+    auto prompt = to_string(rdb_load_string(rdb));
+    auto conf = rdb_load_config(rdb);
+
+    auto app = RedisLlm::instance().app_factory().create(type, llm, prompt, conf);
+
+    return app.release();
 }
 
 void* rdb_load_vector_store(RedisModuleIO *rdb) {

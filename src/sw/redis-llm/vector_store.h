@@ -87,7 +87,7 @@ using VectorStoreCreatorUPtr = std::unique_ptr<VectorStoreCreator>;
 template <typename T>
 class VectorStoreCreatorTpl : public VectorStoreCreator {
 public:
-    virtual VectorStoreUPtr create(const nlohmann::json &conf, const std::string &llm) const {
+    virtual VectorStoreUPtr create(const nlohmann::json &conf, const std::string &llm) const override {
         return std::make_unique<T>(conf, llm);
     }
 };

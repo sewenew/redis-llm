@@ -14,32 +14,22 @@
    limitations under the License.
  *************************************************************************/
 
-#ifndef SEWENEW_REDIS_LLM_PROMPT_H
-#define SEWENEW_REDIS_LLM_PROMPT_H
+#ifndef SEWENEW_REDIS_LLM_SIMPLE_APPLICATION_H
+#define SEWENEW_REDIS_LLM_SIMPLE_APPLICATION_H
 
-#include <string>
-#include <string_view>
-#include "inja/inja.hpp"
-#include "nlohmann/json.hpp"
+#include "sw/redis-llm/application.h"
 
 namespace sw::redis::llm {
 
-class Prompt {
+class SimpleApplication : public Application {
 public:
-    explicit Prompt(const std::string_view &tpl);
+    SimpleApplication(const nlohmann::json &llm,
+            const std::string &prompt,
+            const nlohmann::json &conf);
 
-    std::string render(const nlohmann::json &data = nlohmann::json{}) const;
-
-    const std::string& dump() const {
-        return _raw_tpl;
-    }
-
-private:
-    std::string _raw_tpl;
-
-    inja::Template _tpl;
+    virtual std::string run(LlmModel &llm, const std::string_view &input);
 };
 
 }
 
-#endif // end SEWENEW_REDIS_LLM_PROMPT_H
+#endif // end SEWENEW_REDIS_LLM_SIMPLE_APPLICATION_H

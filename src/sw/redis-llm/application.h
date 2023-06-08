@@ -19,66 +19,90 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
+#include <string_view>
 #include <unordered_map>
+#include <nlohmann/json.hpp>
 #include "sw/redis-llm/llm_model.h"
-#include "sw/redis-llm/embedding_model.h"
-#include "sw/redis-llm/vector_store.h"
+#include "sw/redis-llm/prompt.h"
 
 namespace sw::redis::llm {
 
 class Application {
 public:
-    Application(const nlohmann::json &llm_config,
-            const nlohmann::json &embedding_config,
-            const nlohmann::json &vector_store_config);
+    Application(const std::string &type,
+            const nlohmann::json &llm,
+            const std::string &prompt,
+            const nlohmann::json &conf);
 
-    Application(const nlohmann::json &llm_config,
-            const nlohmann::json &embedding_config,
-            const nlohmann::json &vector_store_config,
-            std::unordered_map<uint64_t, std::pair<std::string, Vector>> data_store);
+    virtual ~Application() = default;
 
-    std::string ask(const std::string_view &question, bool without_private_data);
+    virtual std::string run(LlmModel &llm, const std::string_view &input) = 0;
 
-    std::string chat(uint64_t chat_id, const std::string_view &msg);
-
-    void add(uint64_t id, const std::string_view &data);
-
-    void add(uint64_t id, const std::string_view &data, const Vector &embedding);
-
-    bool rem(uint64_t id);
-
-    std::optional<std::string> get(uint64_t id);
-
-    std::optional<Vector> embedding(uint64_t id);
-
-    nlohmann::json conf() const;
-
-    const std::unordered_map<uint64_t, std::string>& data_store() const {
-        return _data_store;
+    const std::string& type() const {
+        return _type;
     }
 
-    VectorStore& vector_store() {
-        return *_vector_store;
+    const nlohmann::json& llm() const {
+        return _llm;
     }
 
-    std::size_t dim() const {
-        return _vector_store->dim();
+    const Prompt& prompt() const {
+        return *_prompt;
+    }
+
+    const nlohmann::json &conf() const {
+        return _conf;
     }
 
 private:
-    std::string _ask(const std::string_view &question);
+    std::string _type;
 
-    std::vector<std::string> _search_private_data(const std::string_view &question);
+    nlohmann::json _llm;
 
-    std::string _build_llm_input(const std::string_view &question, const std::vector<std::string> &context);
+    std::unique_ptr<Prompt> _prompt;
 
-    std::unique_ptr<LlmModel> _llm;
+    nlohmann::json _conf;
+};
 
-    std::unique_ptr<EmbeddingModel> _embedding;
+using ApplicationUPtr = std::unique_ptr<Application>;
 
-    std::unique_ptr<VectorStore> _vector_store;
+class ApplicationCreator {
+public:
+    virtual ~ApplicationCreator() = default;
 
-    std::unordered_map<uint64_t, std::string> _data_store;
+    virtual ApplicationUPtr create(const std::string &type,
+            const nlohmann::json &llm,
+            const std::string &prompt,
+            const nlohmann::json &conf) const = 0;
+};
+
+using ApplicationCreatorUPtr = std::unique_ptr<ApplicationCreator>;
+
+template <typename T>
+class ApplicationCreatorTpl : public ApplicationCreator {
+public:
+    virtual ApplicationUPtr create(const std::string &type,
+            const nlohmann::json &llm,
+            const std::string &prompt,
+            const nlohmann::json &conf) const override {
+        return std::make_unique<T>(llm, prompt, conf);
+    }
+};
+
+class ApplicationFactory {
+public:
+    ApplicationFactory();
+
+    ApplicationUPtr create(const std::string &type,
+            const nlohmann::json &llm,
+            const std::string &prompt,
+            const nlohmann::json &conf) const;
+
+private:
+    void _register(const std::string &type, ApplicationCreatorUPtr creator);
+
+    std::unordered_map<std::string, ApplicationCreatorUPtr> _creators;
 };
 
 }
