@@ -28,8 +28,6 @@ namespace sw::redis::llm {
 
 class EmbeddingModel {
 public:
-    EmbeddingModel() = default;
-
     EmbeddingModel(const std::string &type, const nlohmann::json &conf) : _type(type), _conf(conf) {}
 
     virtual ~EmbeddingModel() = default;

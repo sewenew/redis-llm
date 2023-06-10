@@ -14,34 +14,36 @@
    limitations under the License.
  *************************************************************************/
 
-#ifndef SEWENEW_REDIS_LLM_CREATE_LLM_COMMAND_H
-#define SEWENEW_REDIS_LLM_CREATE_LLM_COMMAND_H
+#ifndef SEWENEW_REDIS_LLM_RUN_COMMAND_H
+#define SEWENEW_REDIS_LLM_RUN_COMMAND_H
 
 #include "nlohmann/json.hpp"
 #include "sw/redis-llm/command.h"
 #include "sw/redis-llm/module_api.h"
+#include "sw/redis-llm/llm_model.h"
+#include "sw/redis-llm/utils.h"
 
 namespace sw::redis::llm {
 
-// LLM.CREATE LLM key --TYPE openai --PARAMS '{}'
-class CreateLlmCommand : public Command {
-public:
-    explicit CreateLlmCommand(RedisModuleKey &key) : _key(key) {}
-
+class RunCommand : public Command {
 private:
     virtual void _run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const override;
 
     struct Args {
-        std::string type = "openai";
+        RedisModuleString *key_name = nullptr;
 
-        nlohmann::json params = nlohmann::json::object();
+        nlohmann::json vars;
+
+        std::string_view input;
+
+        bool verbose = false;
     };
 
     Args _parse_args(RedisModuleString **argv, int argc) const;
 
-    RedisModuleKey &_key;
+    std::string _run_impl(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const;
 };
 
 }
 
-#endif // end SEWENEW_REDIS_LLM_CREATE_LLM_COMMAND_H
+#endif // end SEWENEW_REDIS_LLM_RUN_COMMAND_H

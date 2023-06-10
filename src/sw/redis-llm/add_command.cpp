@@ -82,7 +82,7 @@ Vector AddCommand::_get_embedding(RedisModuleCtx *ctx, const std::string_view &d
         throw;
     }
 
-    return model->embedding(data);
+    return model->embedding(data, {});
 }
 
 AddCommand::Args AddCommand::_parse_args(RedisModuleString **argv, int argc) const {

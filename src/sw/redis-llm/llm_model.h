@@ -32,9 +32,9 @@ public:
 
     virtual ~LlmModel() = default;
 
-    virtual std::vector<float> embedding(const std::string_view &input) = 0;
+    virtual std::vector<float> embedding(const std::string_view &input, const nlohmann::json &params) = 0;
 
-    virtual std::string predict(const std::string_view &input) = 0;
+    virtual std::string predict(const std::string_view &input, const nlohmann::json &params) = 0;
 
     const std::string& type() const {
         return _type;
@@ -56,7 +56,7 @@ class LlmModelCreator {
 public:
     virtual ~LlmModelCreator() = default;
 
-    virtual LlmModelUPtr create(const std::string &type, const nlohmann::json &conf) const = 0;
+    virtual LlmModelUPtr create(const nlohmann::json &conf) const = 0;
 };
 
 using LlmModelCreatorUPtr = std::unique_ptr<LlmModelCreator>;
@@ -64,7 +64,7 @@ using LlmModelCreatorUPtr = std::unique_ptr<LlmModelCreator>;
 template <typename T>
 class LlmModelCreatorTpl : public LlmModelCreator {
 public:
-    virtual LlmModelUPtr create(const std::string &type, const nlohmann::json &conf) const override {
+    virtual LlmModelUPtr create(const nlohmann::json &conf) const override {
         return std::make_unique<T>(conf);
     }
 };

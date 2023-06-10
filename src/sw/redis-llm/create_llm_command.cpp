@@ -49,7 +49,7 @@ CreateLlmCommand::Args CreateLlmCommand::_parse_args(RedisModuleString **argv, i
                 throw Error("syntax error");
             }
             ++idx;
-            args.params = _parse_params(util::to_sv(argv[idx]));
+            args.params = util::to_json(argv[idx]);
         } else {
             break;
         }
@@ -58,17 +58,6 @@ CreateLlmCommand::Args CreateLlmCommand::_parse_args(RedisModuleString **argv, i
     }
 
     return args;
-}
-
-nlohmann::json CreateLlmCommand::_parse_params(const std::string_view &opt) const {
-    nlohmann::json params;
-    try {
-        params = nlohmann::json::parse(opt.begin(), opt.end());
-    } catch (const nlohmann::json::exception &e) {
-        throw Error(std::string("failed to parse LLM parameters") + e.what());
-    }
-
-    return params;
 }
 
 }

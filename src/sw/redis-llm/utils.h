@@ -22,6 +22,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <nlohmann/json.hpp>
 #include "sw/redis-llm/module_api.h"
 
 namespace sw::redis::llm {
@@ -35,6 +36,8 @@ std::string_view to_sv(RedisModuleString *str);
 std::vector<std::string_view> to_sv(RedisModuleString **argv, int argc);
 
 std::string to_string(RedisModuleString *str);
+
+nlohmann::json to_json(RedisModuleString *str);
 
 bool str_case_equal(const std::string_view &s1, const std::string_view &s2);
 

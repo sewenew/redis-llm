@@ -26,9 +26,11 @@ class LlamaCpp : public LlmModel {
 public:
     explicit LlamaCpp(const nlohmann::json &conf);
 
-    virtual std::vector<float> embedding(const std::string_view &input) override;
+    virtual std::vector<float> embedding(const std::string_view &input,
+            const nlohmann::json &params = nlohmann::json::object()) override;
 
-    virtual std::string predict(const std::string_view &input) override;
+    virtual std::string predict(const std::string_view &input,
+            const nlohmann::json &params = nlohmann::json::object()) override;
 
 private:
     struct Options {

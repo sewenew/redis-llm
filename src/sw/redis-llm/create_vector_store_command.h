@@ -34,14 +34,12 @@ private:
     struct Args {
         std::string type;
 
-        nlohmann::json params;
+        nlohmann::json params = nlohmann::json::object();
 
         std::string llm;
     };
 
     Args _parse_args(RedisModuleString **argv, int argc) const;
-
-    nlohmann::json _parse_params(const std::string_view &opt) const;
 
     RedisModuleKey &_key;
 };

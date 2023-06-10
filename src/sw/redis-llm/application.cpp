@@ -22,10 +22,17 @@
 namespace sw::redis::llm {
 
 Application::Application(const std::string &type,
-        const nlohmann::json &llm,
-        const std::string &prompt,
-        const nlohmann::json &conf) :
-    _type(type), _llm(llm), _prompt(std::make_unique<Prompt>(prompt)), _conf(conf) {
+        const nlohmann::json &llm, const nlohmann::json &conf) :
+    _type(type), _llm(llm), _conf(conf) {
+    auto iter = _llm.find("key");
+    if (iter == _llm.end()) {
+        throw Error("no key is specified for LLM conf");
+    }
+
+    iter = _llm.find("params");
+    if (iter == _llm.end()) {
+        throw Error("no params is specified for LLM conf");
+    }
 }
 
 ApplicationFactory::ApplicationFactory() {
@@ -33,15 +40,13 @@ ApplicationFactory::ApplicationFactory() {
 }
 
 ApplicationUPtr ApplicationFactory::create(const std::string &type,
-        const nlohmann::json &llm,
-        const std::string &prompt,
-        const nlohmann::json &conf) const {
+        const nlohmann::json &llm, const nlohmann::json &conf) const {
     auto iter = _creators.find(type);
     if (iter == _creators.end()) {
         throw Error(std::string("unknown application model: ") + type);
     }
 
-    return iter->second->create(type, llm, prompt, conf);
+    return iter->second->create(llm, conf);
 }
 
 void ApplicationFactory::_register(const std::string &type, ApplicationCreatorUPtr creator) {

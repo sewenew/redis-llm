@@ -25,7 +25,7 @@ OpenAi::OpenAi(const nlohmann::json &conf) :
     _opts(_parse_options(conf)),
     _cli(_make_client(_opts)) {}
 
-std::string OpenAi::predict(const std::string_view &input) {
+std::string OpenAi::predict(const std::string_view &input, const nlohmann::json &params) {
     try {
         if (_opts.chat.is_null()) {
             throw Error("no chat conf is specified");
@@ -45,7 +45,7 @@ std::string OpenAi::predict(const std::string_view &input) {
     return "";
 }
 
-Vector OpenAi::embedding(const std::string_view &input) {
+Vector OpenAi::embedding(const std::string_view &input, const nlohmann::json &params) {
     try {
         if (_opts.embedding.is_null()) {
             throw Error("no embedding config is specified");
@@ -90,22 +90,16 @@ OpenAi::Options OpenAi::_parse_options(const nlohmann::json &conf) const {
     Options opts;
     try {
         opts.api_key = conf.at("api_key").get<std::string>();
-        opts.chat["model"] = "gpt-3.5-turbo";
-        opts.embedding["model"] = "text-embedding-ada-002";
-        /*
-        auto iter = conf.find("chat");
-        if (iter != conf.end()) {
-            opts.chat = iter.value();
-        }
-        */
+        opts.chat = conf.value<nlohmann::json>("chat", nlohmann::json{});
         opts.chat_uri = conf.value<std::string>("chat_uri", "/v1/chat/completions");
-        /*
-        iter = conf.find("embedding");
-        if (iter != conf.end()) {
-            opts.embedding = iter.value();
-        }
-        */
+        opts.embedding = conf.value<nlohmann::json>("embedding", nlohmann::json{});
         opts.embedding_uri = conf.value<std::string>("embedding_uri", "/v1/embeddings");
+        if (opts.chat.find("model") == opts.chat.end()) {
+            opts.chat["model"] = "gpt-3.5-turbo";
+        }
+        if (opts.embedding.find("model") == opts.embedding.end()) {
+            opts.embedding["model"] = "text-embedding-ada-002";
+        }
     } catch (const nlohmann::json::exception &e) {
         throw Error(std::string("failed to parse openai options: ") + e.what() + ":" + conf.dump());
     }

@@ -17,17 +17,20 @@
 #ifndef SEWENEW_REDIS_LLM_SIMPLE_APPLICATION_H
 #define SEWENEW_REDIS_LLM_SIMPLE_APPLICATION_H
 
+#include "nlohmann/json.hpp"
 #include "sw/redis-llm/application.h"
+#include "sw/redis-llm/prompt.h"
 
 namespace sw::redis::llm {
 
 class SimpleApplication : public Application {
 public:
-    SimpleApplication(const nlohmann::json &llm,
-            const std::string &prompt,
-            const nlohmann::json &conf);
+    SimpleApplication(const nlohmann::json &llm, const nlohmann::json &conf);
 
-    virtual std::string run(LlmModel &llm, const std::string_view &input);
+    virtual std::string run(LlmModel &llm, const nlohmann::json &context, const std::string_view &input, bool verbose) override;
+
+private:
+    Prompt _prompt;
 };
 
 }

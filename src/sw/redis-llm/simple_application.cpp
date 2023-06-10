@@ -19,12 +19,31 @@
 namespace sw::redis::llm {
 
 SimpleApplication::SimpleApplication(const nlohmann::json &llm,
-        const std::string &prompt,
-        const nlohmann::json &conf) : Application("app", llm, prompt, conf) {
-}
+        const nlohmann::json &conf) :
+    Application("app", llm, conf),
+    _prompt(conf.value<std::string>("prompt", "")) {}
 
-std::string SimpleApplication::run(LlmModel &llm, const std::string_view &input) {
-    return llm.predict(input);
+std::string SimpleApplication::run(LlmModel &model, const nlohmann::json &context, const std::string_view &input, bool verbose) {
+    nlohmann::json vars;
+    if (!context.is_null()) {
+        vars = context.value<nlohmann::json>("vars", nlohmann::json::object());
+    }
+    auto request = _prompt.render(vars);
+
+    if (!request.empty()) {
+        request += "\n\n";
+    }
+    request += input;
+
+    std::string output;
+    if (verbose) {
+        output += request;
+        output += "\n\n";
+    }
+
+    output += model.predict(request, llm_params());
+
+    return output;
 }
 
 }

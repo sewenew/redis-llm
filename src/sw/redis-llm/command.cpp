@@ -21,6 +21,7 @@
 #include "sw/redis-llm/errors.h"
 #include "sw/redis-llm/get_command.h"
 #include "sw/redis-llm/rem_command.h"
+#include "sw/redis-llm/run_command.h"
 
 namespace sw::redis::llm {
 
@@ -91,6 +92,19 @@ void create_commands(RedisModuleCtx *ctx) {
                 1,
                 1) == REDISMODULE_ERR) {
         throw Error("failed to create LLM.GET command");
+    }
+
+    if (RedisModule_CreateCommand(ctx,
+                "LLM.RUN",
+                [](RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+                    RunCommand cmd;
+                    return cmd.run(ctx, argv, argc);
+                },
+                "readonly",
+                1,
+                1,
+                1) == REDISMODULE_ERR) {
+        throw Error("failed to create LLM.RUN command");
     }
 
     /*

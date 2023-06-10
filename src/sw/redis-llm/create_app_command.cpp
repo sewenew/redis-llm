@@ -14,26 +14,28 @@
    limitations under the License.
  *************************************************************************/
 
-#include "create_vector_store_command.h"
-#include "sw/redis-llm/errors.h"
+#include "sw/redis-llm/create_app_command.h"
 #include "sw/redis-llm/redis_llm.h"
-#include "sw/redis-llm/utils.h"
 
 namespace sw::redis::llm {
 
-void CreateVectorStoreCommand::_run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const {
+void CreateAppCommand::_run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const {
     auto args = _parse_args(argv, argc);
 
     auto &llm = RedisLlm::instance();
-    auto store = llm.vector_store_factory().create(args.type, args.params, args.llm);
-    if (RedisModule_ModuleTypeSetValue(&_key, llm.vector_store_type(), store.get()) != REDISMODULE_OK) {
-        throw Error("failed to create vector store");
+    nlohmann::json params;
+    if (!args.prompt.empty()) {
+        params["prompt"] = args.prompt;
+    }
+    auto app = llm.app_factory().create(args.type, args.llm, params);
+    if (RedisModule_ModuleTypeSetValue(&_key, llm.app_type(), app.get()) != REDISMODULE_OK) {
+        throw Error("failed to create APP");
     }
 
-    store.release();
+    app.release();
 }
 
-CreateVectorStoreCommand::Args CreateVectorStoreCommand::_parse_args(RedisModuleString **argv, int argc) const {
+CreateAppCommand::Args CreateAppCommand::_parse_args(RedisModuleString **argv, int argc) const {
     Args args;
     auto idx = 0;
     while (idx < argc) {
@@ -44,18 +46,18 @@ CreateVectorStoreCommand::Args CreateVectorStoreCommand::_parse_args(RedisModule
             }
             ++idx;
             args.type = util::to_sv(argv[idx]);
-        } else if (util::str_case_equal(opt, "--PARAMS")) {
-            if (idx + 1 >= argc) {
-                throw Error("syntax error");
-            }
-            ++idx;
-            args.params = util::to_json(argv[idx]);
         } else if (util::str_case_equal(opt, "--LLM")) {
             if (idx + 1 >= argc) {
                 throw Error("syntax error");
             }
             ++idx;
-            args.llm = util::to_string(argv[idx]);
+            args.llm = _parse_llm(util::to_sv(argv[idx]));
+        } else if (util::str_case_equal(opt, "--PROMPT")) {
+            if (idx + 1 >= argc) {
+                throw Error("syntax error");
+            }
+            ++idx;
+            args.prompt = util::to_string(argv[idx]);
         } else {
             break;
         }
@@ -63,11 +65,30 @@ CreateVectorStoreCommand::Args CreateVectorStoreCommand::_parse_args(RedisModule
         ++idx;
     }
 
-    if (args.type.empty()) {
-        args.type = "hnsw";
+    return args;
+}
+
+nlohmann::json CreateAppCommand::_parse_llm(const std::string_view &opt) const {
+    nlohmann::json llm;
+    try {
+        if (!opt.empty() && opt.front() == '{') {
+            llm = nlohmann::json::parse(opt.begin(), opt.end());
+        } else {
+            llm["key"] = std::string(opt);
+        }
+
+        if (llm.find("key") == llm.end()) {
+            throw Error("no LLM key is specified");
+        }
+
+        if (llm.find("params") == llm.end()) {
+            llm["params"] = nlohmann::json::object();
+        }
+    } catch (const nlohmann::json::exception &e) {
+        throw Error(std::string("failed to parse llm parameter: ") + e.what());
     }
 
-    return args;
+    return llm;
 }
 
 }

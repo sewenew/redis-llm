@@ -33,7 +33,7 @@ LlmModelUPtr LlmModelFactory::create(const std::string &type, const nlohmann::js
         throw Error(std::string("unknown LLM model: ") + type);
     }
 
-    return iter->second->create(type, conf);
+    return iter->second->create(conf);
 }
 
 void LlmModelFactory::_register(const std::string &type, LlmModelCreatorUPtr creator) {

@@ -23,11 +23,11 @@ LlamaCpp::LlamaCpp(const nlohmann::json &conf) :
     LlmModel("llamacpp", conf),
     _opts(_parse_options(conf)) {}
 
-std::vector<float> LlamaCpp::embedding(const std::string_view &input) {
+std::vector<float> LlamaCpp::embedding(const std::string_view &input, const nlohmann::json &params) {
     return {};
 }
 
-std::string LlamaCpp::predict(const std::string_view &input) {
+std::string LlamaCpp::predict(const std::string_view &input, const nlohmann::json &params) {
     return "";
 }
 

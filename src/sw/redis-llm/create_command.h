@@ -56,8 +56,6 @@ private:
 
     Args _parse_args(RedisModuleString **argv, int argc) const;
 
-    bool _parse_nx_xx_option(const std::string_view &opt, Args &args) const;
-
     nlohmann::json _parse_config(RedisModuleString *str) const;
 
     int _create(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const;

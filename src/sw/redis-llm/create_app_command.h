@@ -14,32 +14,38 @@
    limitations under the License.
  *************************************************************************/
 
-#ifndef SEWENEW_REDIS_LLM_ASK_COMMAND_H
-#define SEWENEW_REDIS_LLM_ASK_COMMAND_H
+#ifndef SEWENEW_REDIS_LLM_CREATE_APP_COMMAND_H
+#define SEWENEW_REDIS_LLM_CREATE_APP_COMMAND_H
 
-#include "sw/redis-llm/module_api.h"
+#include "nlohmann/json.hpp"
 #include "sw/redis-llm/command.h"
-#include "sw/redis-llm/utils.h"
+#include "sw/redis-llm/module_api.h"
 
 namespace sw::redis::llm {
 
-class AskCommand : public Command {
+// LLM.CREATE APP key --TYPE app --LLM xxx --PARAMS '{}'
+class CreateAppCommand : public Command {
+public:
+    explicit CreateAppCommand(RedisModuleKey &key) : _key(key) {}
+
 private:
     virtual void _run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const override;
 
     struct Args {
-        RedisModuleString *key_name = nullptr;
+        std::string type = "app";
 
-        std::string_view question;
+        nlohmann::json llm = nlohmann::json::object();
 
-        bool no_private_data = false;
+        std::string prompt;
     };
 
     Args _parse_args(RedisModuleString **argv, int argc) const;
 
-    std::string _ask(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const;
+    nlohmann::json _parse_llm(const std::string_view &opt) const;
+
+    RedisModuleKey &_key;
 };
 
 }
 
-#endif // end SEWENEW_REDIS_LLM_ASK_COMMAND_H
+#endif // end SEWENEW_REDIS_LLM_CREATE_APP_COMMAND_H

@@ -65,4 +65,35 @@ int reply_with_error(RedisModuleCtx *ctx, const Error &err) {
     return RedisModule_ReplyWithError(ctx, msg.data());
 }
 
+LlmModel* get_model_by_key(RedisModuleCtx *ctx, const std::string &key_name, RedisModuleType *type) {
+    auto *key_str = RedisModule_CreateString(ctx, key_name.data(), key_name.size());
+    LlmModel *model = nullptr;
+    try {
+        model = get_model_by_key(ctx, key_str, type);
+    } catch (...) {
+        RedisModule_FreeString(ctx, key_str);
+        throw;
+    }
+
+    RedisModule_FreeString(ctx, key_str);
+
+    return model;
+}
+
+LlmModel* get_model_by_key(RedisModuleCtx *ctx, RedisModuleString *key_name, RedisModuleType *type) {
+    assert(ctx != nullptr && type != nullptr);
+
+    auto key = open_key(ctx, key_name, api::KeyMode::READONLY);
+    assert(key);
+
+    if (!key_exists(key.get(), type)) {
+        return nullptr;
+    }
+
+    auto *model = api::get_value_by_key<LlmModel>(*key);
+    assert(model != nullptr);
+
+    return model;
+}
+
 }

@@ -335,7 +335,6 @@ void RedisLlm::_aof_rewrite_app(RedisModuleIO *aof, RedisModuleString *key, void
 
         auto *app = static_cast<Application *>(value);
         const auto &type = app->type();
-        auto prompt = app->prompt().dump();
         std::string llm;
         std::string conf;
         try {
@@ -347,7 +346,7 @@ void RedisLlm::_aof_rewrite_app(RedisModuleIO *aof, RedisModuleString *key, void
 
         RedisModule_EmitAOF(aof,
                 "LLM.CREATE",
-                "cscbcbcbcb",
+                "cscbcbcb",
                 "APP",
                 key,
                 "--TYPE",
@@ -356,9 +355,6 @@ void RedisLlm::_aof_rewrite_app(RedisModuleIO *aof, RedisModuleString *key, void
                 "--LLM",
                 llm.data(),
                 llm.size(),
-                "--PROMPT",
-                prompt.data(),
-                prompt.size(),
                 "--PARAMS",
                 conf.data(),
                 conf.size());
@@ -488,7 +484,6 @@ void rdb_save_app(RedisModuleIO *rdb, void *value) {
 
     rdb_save_string(rdb, app->type());
     rdb_save_config(rdb, app->llm());
-    rdb_save_string(rdb, app->prompt().dump());
     rdb_save_config(rdb, app->conf());
 }
 
@@ -516,10 +511,9 @@ void* rdb_load_llm(RedisModuleIO *rdb) {
 void* rdb_load_app(RedisModuleIO *rdb) {
     auto type = to_string(rdb_load_string(rdb));
     auto llm = rdb_load_config(rdb);
-    auto prompt = to_string(rdb_load_string(rdb));
     auto conf = rdb_load_config(rdb);
 
-    auto app = RedisLlm::instance().app_factory().create(type, llm, prompt, conf);
+    auto app = RedisLlm::instance().app_factory().create(type, llm, conf);
 
     return app.release();
 }

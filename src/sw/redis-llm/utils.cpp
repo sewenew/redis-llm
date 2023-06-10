@@ -64,6 +64,18 @@ std::string to_string(RedisModuleString *str) {
     return {data, len};
 }
 
+nlohmann::json to_json(RedisModuleString *str) {
+    auto sv = to_sv(str);
+    nlohmann::json info;
+    try {
+        info = nlohmann::json::parse(sv.begin(), sv.end());
+    } catch (const nlohmann::json::exception &e) {
+        throw Error(std::string("failed to parse json: ") + e.what());
+    }
+
+    return info;
+}
+
 bool str_case_equal(const std::string_view &s1, const std::string_view &s2) {
     if (s1.size() != s2.size()) {
         return false;

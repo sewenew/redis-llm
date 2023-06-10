@@ -15,7 +15,7 @@
  *************************************************************************/
 
 #include "sw/redis-llm/create_command.h"
-//#include "sw/redis-llm/application.h"
+#include "sw/redis-llm/create_app_command.h"
 #include "sw/redis-llm/create_llm_command.h"
 #include "sw/redis-llm/create_vector_store_command.h"
 #include "sw/redis-llm/module_api.h"
@@ -61,6 +61,11 @@ int CreateCommand::_create(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
         module_type = llm.vector_store_type();
         break;
 
+    case SubCmd::APP:
+        sub_cmd = std::make_unique<CreateAppCommand>(*key);
+        module_type = llm.app_type();
+        break;
+
     default:
         throw Error("unsupported sub command");
     }
@@ -78,28 +83,6 @@ int CreateCommand::_create(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
     sub_cmd->run(ctx, sub_cmd_argv, sub_cmd_argc);
 
     return 1;
-}
-
-bool CreateCommand::_parse_nx_xx_option(const std::string_view &opt, Args &args) const {
-    if (util::str_case_equal(opt, "--NX")) {
-        if (args.opt != Args::Opt::NONE) {
-            throw Error("syntax error");
-        }
-
-        args.opt = Args::Opt::NX;
-
-        return true;
-    } else if (util::str_case_equal(opt, "--XX")) {
-        if (args.opt != Args::Opt::NONE) {
-            throw Error("syntax error");
-        }
-
-        args.opt = Args::Opt::XX;
-
-        return true;
-    } else {
-        return false;
-    }
 }
 
 CreateCommand::SubCmd CreateCommand::_parse_sub_cmd(const std::string_view &opt) const {
@@ -139,19 +122,6 @@ CreateCommand::Args CreateCommand::_parse_args(RedisModuleString **argv, int arg
     }
 
     return args;
-}
-
-nlohmann::json CreateCommand::_parse_config(RedisModuleString *str) const {
-    auto config = util::to_sv(str);
-
-    nlohmann::json conf;
-    try {
-        conf = nlohmann::json::parse(config.begin(), config.end());
-    } catch (const nlohmann::json::exception &e) {
-        throw Error(std::string("failed to parse json config: ") + e.what());
-    }
-
-    return conf;
 }
 
 }

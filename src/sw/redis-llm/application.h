@@ -24,20 +24,22 @@
 #include <unordered_map>
 #include <nlohmann/json.hpp>
 #include "sw/redis-llm/llm_model.h"
-#include "sw/redis-llm/prompt.h"
 
 namespace sw::redis::llm {
 
 class Application {
 public:
-    Application(const std::string &type,
-            const nlohmann::json &llm,
-            const std::string &prompt,
-            const nlohmann::json &conf);
+    Application(const std::string &type, const nlohmann::json &llm, const nlohmann::json &conf);
+
+    Application(const Application &) = delete;
+    Application& operator=(const Application &) = delete;
+
+    Application(Application &&) = delete;
+    Application& operator=(Application &&) = delete;
 
     virtual ~Application() = default;
 
-    virtual std::string run(LlmModel &llm, const std::string_view &input) = 0;
+    virtual std::string run(LlmModel &llm, const nlohmann::json &context, const std::string_view &input, bool verbose) = 0;
 
     const std::string& type() const {
         return _type;
@@ -47,20 +49,23 @@ public:
         return _llm;
     }
 
-    const Prompt& prompt() const {
-        return *_prompt;
+    const nlohmann::json& conf() const {
+        return _conf;
     }
 
-    const nlohmann::json &conf() const {
-        return _conf;
+    std::string llm_key() const {
+        return _llm.at("key").get<std::string>();
+    }
+
+    const nlohmann::json& llm_params() const {
+        return _llm.at("params");
     }
 
 private:
     std::string _type;
 
+    // {"key" : "xxx", "params" : {}}
     nlohmann::json _llm;
-
-    std::unique_ptr<Prompt> _prompt;
 
     nlohmann::json _conf;
 };
@@ -71,10 +76,7 @@ class ApplicationCreator {
 public:
     virtual ~ApplicationCreator() = default;
 
-    virtual ApplicationUPtr create(const std::string &type,
-            const nlohmann::json &llm,
-            const std::string &prompt,
-            const nlohmann::json &conf) const = 0;
+    virtual ApplicationUPtr create(const nlohmann::json &llm, const nlohmann::json &conf) const = 0;
 };
 
 using ApplicationCreatorUPtr = std::unique_ptr<ApplicationCreator>;
@@ -82,11 +84,8 @@ using ApplicationCreatorUPtr = std::unique_ptr<ApplicationCreator>;
 template <typename T>
 class ApplicationCreatorTpl : public ApplicationCreator {
 public:
-    virtual ApplicationUPtr create(const std::string &type,
-            const nlohmann::json &llm,
-            const std::string &prompt,
-            const nlohmann::json &conf) const override {
-        return std::make_unique<T>(llm, prompt, conf);
+    virtual ApplicationUPtr create(const nlohmann::json &llm, const nlohmann::json &conf) const override {
+        return std::make_unique<T>(llm, conf);
     }
 };
 
@@ -95,9 +94,7 @@ public:
     ApplicationFactory();
 
     ApplicationUPtr create(const std::string &type,
-            const nlohmann::json &llm,
-            const std::string &prompt,
-            const nlohmann::json &conf) const;
+            const nlohmann::json &llm, const nlohmann::json &conf) const;
 
 private:
     void _register(const std::string &type, ApplicationCreatorUPtr creator);
