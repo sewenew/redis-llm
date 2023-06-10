@@ -22,6 +22,8 @@
 
 namespace sw::redis::llm {
 
+// LLM.REM key id
+// This command works with VECTOR STORE
 class RemCommand : public Command {
 private:
     virtual void _run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const override;

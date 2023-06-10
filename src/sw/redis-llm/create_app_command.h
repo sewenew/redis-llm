@@ -23,7 +23,7 @@
 
 namespace sw::redis::llm {
 
-// LLM.CREATE APP key --TYPE app --LLM xxx --PARAMS '{}'
+// LLM.CREATE APP key [--NX] [--XX] [--TYPE app] --LLM llm-info [--PARAMS '{}'] [--PROMPT prompt]
 class CreateAppCommand : public Command {
 public:
     explicit CreateAppCommand(RedisModuleKey &key) : _key(key) {}

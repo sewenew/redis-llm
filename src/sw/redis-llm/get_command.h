@@ -23,6 +23,8 @@
 
 namespace sw::redis::llm {
 
+// LLM.GET key id
+// This command works with VECTOR STORE
 class GetCommand : public Command {
 private:
     virtual void _run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const override;

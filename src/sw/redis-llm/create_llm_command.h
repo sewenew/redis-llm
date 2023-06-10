@@ -23,7 +23,7 @@
 
 namespace sw::redis::llm {
 
-// LLM.CREATE LLM key --TYPE openai --PARAMS '{}'
+// LLM.CREATE LLM key [--NX] [--XX] --TYPE openai --PARAMS '{}'
 class CreateLlmCommand : public Command {
 public:
     explicit CreateLlmCommand(RedisModuleKey &key) : _key(key) {}

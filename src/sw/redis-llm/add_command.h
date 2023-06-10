@@ -24,6 +24,7 @@
 namespace sw::redis::llm {
 
 // LLM.ADD key id data [embedding]
+// This command works with VECTOR STORE
 class AddCommand : public Command {
 private:
     virtual void _run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const override;

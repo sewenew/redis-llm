@@ -23,7 +23,7 @@
 
 namespace sw::redis::llm {
 
-// LLM.CREATE VECTOR_STORE key [--TYPE xxx] --PARAMS '{}'
+// LLM.CREATE VECTOR_STORE key [--NX] [--XX] [--TYPE xxx] [--LLM llm-info] [--PARAMS '{}']
 class CreateVectorStoreCommand : public Command {
 public:
     explicit CreateVectorStoreCommand(RedisModuleKey &key) : _key(key) {}

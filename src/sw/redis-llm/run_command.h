@@ -25,6 +25,8 @@
 
 namespace sw::redis::llm {
 
+// LLM.RUN key [--VARS '{"user" : "Jim"}'] [--PARAMS ''] [--VERBOSE] [input]
+// This command works with APP
 class RunCommand : public Command {
 private:
     virtual void _run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const override;
