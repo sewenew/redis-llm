@@ -36,7 +36,7 @@ private:
 
         nlohmann::json llm = nlohmann::json::object();
 
-        std::string prompt;
+        nlohmann::json params = nlohmann::json::object();
     };
 
     Args _parse_args(RedisModuleString **argv, int argc) const;

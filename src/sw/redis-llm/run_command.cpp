@@ -79,7 +79,9 @@ RunCommand::Args RunCommand::_parse_args(RedisModuleString **argv, int argc) con
         ++idx;
     }
 
-    args.input = util::to_sv(argv[idx]);
+    if (idx < argc) {
+        args.input = util::to_sv(argv[idx]);
+    }
 
     return args;
 }

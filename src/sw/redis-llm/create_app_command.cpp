@@ -23,11 +23,7 @@ void CreateAppCommand::_run(RedisModuleCtx *ctx, RedisModuleString **argv, int a
     auto args = _parse_args(argv, argc);
 
     auto &llm = RedisLlm::instance();
-    nlohmann::json params;
-    if (!args.prompt.empty()) {
-        params["prompt"] = args.prompt;
-    }
-    auto app = llm.app_factory().create(args.type, args.llm, params);
+    auto app = llm.app_factory().create(args.type, args.llm, args.params);
     if (RedisModule_ModuleTypeSetValue(&_key, llm.app_type(), app.get()) != REDISMODULE_OK) {
         throw Error("failed to create APP");
     }
@@ -52,12 +48,18 @@ CreateAppCommand::Args CreateAppCommand::_parse_args(RedisModuleString **argv, i
             }
             ++idx;
             args.llm = _parse_llm(util::to_sv(argv[idx]));
+        } else if (util::str_case_equal(opt, "--PARAMS")) {
+            if (idx + 1 >= argc) {
+                throw Error("syntax error");
+            }
+            ++idx;
+            args.params = util::to_json(argv[idx]);
         } else if (util::str_case_equal(opt, "--PROMPT")) {
             if (idx + 1 >= argc) {
                 throw Error("syntax error");
             }
             ++idx;
-            args.prompt = util::to_string(argv[idx]);
+            args.params["prompt"] = util::to_string(argv[idx]);
         } else {
             break;
         }
