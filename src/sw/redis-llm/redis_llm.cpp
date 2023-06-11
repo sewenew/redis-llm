@@ -338,7 +338,7 @@ void RedisLlm::_aof_rewrite_app(RedisModuleIO *aof, RedisModuleString *key, void
         std::string llm;
         std::string conf;
         try {
-            llm = app->llm().dump();
+            llm = app->llm().to_string();
             conf = app->conf().dump();
         } catch (const std::exception &e) {
             throw Error(std::string("failed to dump app conf: ") + e.what());
@@ -464,7 +464,7 @@ void rdb_save_vector(RedisModuleIO *rdb, const Vector &vec) {
 void rdb_save_vector_store(RedisModuleIO *rdb, VectorStore &store) {
     rdb_save_string(rdb, store.type());
     rdb_save_config(rdb, store.conf());
-    rdb_save_string(rdb, store.llm());
+    rdb_save_string(rdb, store.llm().to_string());
 
     const auto &data_store = store.data_store();
     rdb_save_number(rdb, data_store.size());
@@ -483,7 +483,7 @@ void rdb_save_app(RedisModuleIO *rdb, void *value) {
     auto *app = static_cast<Application *>(value);
 
     rdb_save_string(rdb, app->type());
-    rdb_save_config(rdb, app->llm());
+    rdb_save_string(rdb, app->llm().to_string());
     rdb_save_config(rdb, app->conf());
 }
 
@@ -510,10 +510,11 @@ void* rdb_load_llm(RedisModuleIO *rdb) {
 
 void* rdb_load_app(RedisModuleIO *rdb) {
     auto type = to_string(rdb_load_string(rdb));
-    auto llm = rdb_load_config(rdb);
+    auto info_str = rdb_load_string(rdb);
+    LlmInfo llm_info(to_sv(info_str));
     auto conf = rdb_load_config(rdb);
 
-    auto app = RedisLlm::instance().app_factory().create(type, llm, conf);
+    auto app = RedisLlm::instance().app_factory().create(type, llm_info, conf);
 
     return app.release();
 }
@@ -522,9 +523,10 @@ void* rdb_load_vector_store(RedisModuleIO *rdb) {
     auto &llm = RedisLlm::instance();
     std::string type = to_string(rdb_load_string(rdb));
     auto conf = rdb_load_config(rdb);
-    std::string llm_key = to_string(rdb_load_string(rdb));
+    auto info_str = rdb_load_string(rdb);
+    LlmInfo llm_info(to_sv(info_str));
 
-    auto store = llm.vector_store_factory().create(type, conf, llm_key);
+    auto store = llm.vector_store_factory().create(type, conf, llm_info);
 
     rdb_load_vector_store(rdb, *store);
 

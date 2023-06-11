@@ -18,7 +18,7 @@
 
 namespace sw::redis::llm {
 
-Hnsw::Hnsw(const nlohmann::json &conf, const std::string &llm) :
+Hnsw::Hnsw(const nlohmann::json &conf, const LlmInfo &llm) :
     VectorStore("hnsw", conf, llm), _opts(_parse_options(conf)) {
     _space = std::make_unique<hnswlib::L2Space>(_opts.dim);
     _hnsw = std::make_unique<hnswlib::HierarchicalNSW<float>>(_space.get(), _opts.max_elements, _opts.m, _opts.ef_construction);

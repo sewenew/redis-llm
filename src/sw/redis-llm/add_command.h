@@ -23,7 +23,7 @@
 
 namespace sw::redis::llm {
 
-// LLM.ADD key id data [embedding]
+// LLM.ADD key [--ID id] [--EMBEDDING xxx] data
 // This command works with VECTOR STORE
 class AddCommand : public Command {
 private:
@@ -32,7 +32,7 @@ private:
     struct Args {
         RedisModuleString *key_name = nullptr;
 
-        uint64_t id;
+        std::optional<uint64_t> id;
 
         std::string_view data;
 
@@ -40,6 +40,8 @@ private:
     };
 
     Args _parse_args(RedisModuleString **argv, int argc) const;
+
+    Vector _parse_embedding(const std::string_view &opt) const;
 
     Vector _get_embedding(RedisModuleCtx *ctx, const std::string_view &data, const std::string &llm_key) const;
 

@@ -30,6 +30,50 @@ mode_t file_type(const std::string &file);
 
 namespace sw::redis::llm {
 
+LlmInfo::LlmInfo(const std::string_view &info) {
+    try {
+        nlohmann::json llm;
+        if (!info.empty() && info.front() == '{') {
+            llm = nlohmann::json::parse(info.begin(), info.end());
+        } else {
+            llm["key"] = std::string(info);
+        }
+
+        _init(std::move(llm));
+    } catch (const std::exception &e) {
+        throw Error(std::string("invalid LLM info: ") + e.what());
+    }
+}
+
+std::string LlmInfo::to_string() const {
+    std::string info;
+    try {
+        nlohmann::json llm;
+        llm["key"] = key;
+        llm["params"] = params;
+
+        info = llm.dump();
+    } catch (const nlohmann::json::exception &e) {
+        throw Error(std::string("LlmInfo::to_string fail: ") + e.what());
+    }
+
+    return info;
+}
+
+void LlmInfo::_init(nlohmann::json info) {
+    if (info.is_null()) {
+        throw Error("null LLM info");
+    }
+
+    try {
+        key = info.at("key").get<std::string>();
+
+        params = info.value<nlohmann::json>("params", nlohmann::json::object());
+    } catch (const nlohmann::json::exception &e) {
+        throw Error(std::string("invalid LLM info: ") + e.what());
+    }
+}
+
 namespace util {
 
 std::string_view to_sv(RedisModuleString *str) {

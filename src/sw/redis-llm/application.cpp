@@ -22,25 +22,15 @@
 namespace sw::redis::llm {
 
 Application::Application(const std::string &type,
-        const nlohmann::json &llm, const nlohmann::json &conf) :
-    _type(type), _llm(llm), _conf(conf) {
-    auto iter = _llm.find("key");
-    if (iter == _llm.end()) {
-        throw Error("no key is specified for LLM conf");
-    }
-
-    iter = _llm.find("params");
-    if (iter == _llm.end()) {
-        throw Error("no params is specified for LLM conf");
-    }
-}
+        const LlmInfo &llm, const nlohmann::json &conf) :
+    _type(type), _llm(llm), _conf(conf) {}
 
 ApplicationFactory::ApplicationFactory() {
     _register("app", std::make_unique<ApplicationCreatorTpl<SimpleApplication>>());
 }
 
 ApplicationUPtr ApplicationFactory::create(const std::string &type,
-        const nlohmann::json &llm, const nlohmann::json &conf) const {
+        const LlmInfo &llm, const nlohmann::json &conf) const {
     auto iter = _creators.find(type);
     if (iter == _creators.end()) {
         throw Error(std::string("unknown application model: ") + type);

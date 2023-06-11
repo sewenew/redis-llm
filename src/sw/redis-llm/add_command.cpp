@@ -44,20 +44,28 @@ void AddCommand::_add(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) c
     auto *store = api::get_value_by_key<VectorStore>(*key);
     assert(store != nullptr);
 
-    if (!args.embedding.empty()) {
-        if (store->dim() != args.embedding.size()) {
-            throw Error("embedding dimension not match");
-        }
+    if (args.id) {
+        if (!args.embedding.empty()) {
+            if (store->dim() != args.embedding.size()) {
+                throw Error("embedding dimension not match");
+            }
 
-        store->add(args.id, args.data, args.embedding);
+            store->add(*(args.id), args.data, args.embedding);
+        } else {
+            auto embedding = _get_embedding(ctx, args.data, store->llm().key);
+            store->add(*args.id, args.data, embedding);
+        }
     } else {
-        const auto &llm_key = store->llm();
-        if (llm_key.empty()) {
-            throw Error("no llm is specified for vector store");
-        }
+        if (!args.embedding.empty()) {
+            if (store->dim() != args.embedding.size()) {
+                throw Error("embedding dimension not match");
+            }
 
-        auto embedding = _get_embedding(ctx, args.data, llm_key);
-        store->add(args.id, args.data, embedding);
+            store->add(args.data, args.embedding);
+        } else {
+            auto embedding = _get_embedding(ctx, args.data, store->llm().key);
+            store->add(args.data, embedding);
+        }
     }
 }
 
@@ -88,37 +96,58 @@ Vector AddCommand::_get_embedding(RedisModuleCtx *ctx, const std::string_view &d
 AddCommand::Args AddCommand::_parse_args(RedisModuleString **argv, int argc) const {
     assert(argv != nullptr);
 
-    if (argc < 4) {
+    if (argc < 3) {
         throw WrongArityError();
     }
 
     Args args;
     args.key_name = argv[1];
 
-    try {
-        args.id = std::stoul(util::to_string(argv[2]));
-    } catch (const std::exception &e) {
-        throw Error("invalid id");
-    }
-
-    args.data = util::to_sv(argv[3]);
-
-    if (argc == 5) {
-        std::vector<std::string_view> vec;
-        util::split(util::to_sv(argv[4]), ",", std::back_inserter(vec));
-        Vector embedding;
-        embedding.reserve(vec.size());
-        for (auto &ele : vec) {
-            try {
-                embedding.push_back(stof(std::string(ele)));
-            } catch (const std::exception &e) {
-                throw Error("invalid embedding");
+    auto idx = 0;
+    while (idx < argc) {
+        auto opt = util::to_sv(argv[idx]);
+        if (util::str_case_equal(opt, "--ID")) {
+            if (idx + 1 >= argc) {
+                throw Error("syntax error");
             }
+            ++idx;
+            try {
+                args.id = std::stoul(util::to_string(argv[idx]));
+            } catch (const std::exception &) {
+                throw Error("invalid id");
+            }
+        } else if (util::str_case_equal(opt, "--EMBEDDING")) {
+            if (idx + 1 >= argc) {
+                throw Error("syntax error");
+            }
+            ++idx;
+            args.embedding = _parse_embedding(util::to_sv(argv[idx]));
+        } else {
+            break;
         }
-        args.embedding = std::move(embedding);
+
+        ++idx;
     }
+
+    args.data = util::to_sv(argv[idx]);
 
     return args;
+}
+
+Vector AddCommand::_parse_embedding(const std::string_view &opt) const {
+    std::vector<std::string_view> vec;
+    util::split(opt, ",", std::back_inserter(vec));
+    Vector embedding;
+    embedding.reserve(vec.size());
+    for (auto &ele : vec) {
+        try {
+            embedding.push_back(stof(std::string(ele)));
+        } catch (const std::exception &) {
+            throw Error("invalid embedding");
+        }
+    }
+
+    return embedding;
 }
 
 }

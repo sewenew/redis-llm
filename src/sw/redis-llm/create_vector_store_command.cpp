@@ -55,7 +55,7 @@ CreateVectorStoreCommand::Args CreateVectorStoreCommand::_parse_args(RedisModule
                 throw Error("syntax error");
             }
             ++idx;
-            args.llm = util::to_string(argv[idx]);
+            args.llm = LlmInfo(util::to_sv(argv[idx]));
         } else {
             break;
         }

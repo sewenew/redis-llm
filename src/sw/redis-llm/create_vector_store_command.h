@@ -20,6 +20,7 @@
 #include "nlohmann/json.hpp"
 #include "sw/redis-llm/command.h"
 #include "sw/redis-llm/module_api.h"
+#include "sw/redis-llm/utils.h"
 
 namespace sw::redis::llm {
 
@@ -36,7 +37,7 @@ private:
 
         nlohmann::json params = nlohmann::json::object();
 
-        std::string llm;
+        LlmInfo llm;
     };
 
     Args _parse_args(RedisModuleString **argv, int argc) const;

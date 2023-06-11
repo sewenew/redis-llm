@@ -20,6 +20,7 @@
 #include "nlohmann/json.hpp"
 #include "sw/redis-llm/command.h"
 #include "sw/redis-llm/module_api.h"
+#include "sw/redis-llm/utils.h"
 
 namespace sw::redis::llm {
 
@@ -34,14 +35,12 @@ private:
     struct Args {
         std::string type = "app";
 
-        nlohmann::json llm = nlohmann::json::object();
+        LlmInfo llm;
 
         nlohmann::json params = nlohmann::json::object();
     };
 
     Args _parse_args(RedisModuleString **argv, int argc) const;
-
-    nlohmann::json _parse_llm(const std::string_view &opt) const;
 
     RedisModuleKey &_key;
 };

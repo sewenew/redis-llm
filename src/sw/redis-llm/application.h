@@ -24,12 +24,13 @@
 #include <unordered_map>
 #include <nlohmann/json.hpp>
 #include "sw/redis-llm/llm_model.h"
+#include "sw/redis-llm/utils.h"
 
 namespace sw::redis::llm {
 
 class Application {
 public:
-    Application(const std::string &type, const nlohmann::json &llm, const nlohmann::json &conf);
+    Application(const std::string &type, const LlmInfo &llm, const nlohmann::json &conf);
 
     Application(const Application &) = delete;
     Application& operator=(const Application &) = delete;
@@ -45,7 +46,7 @@ public:
         return _type;
     }
 
-    const nlohmann::json& llm() const {
+    const LlmInfo& llm() const {
         return _llm;
     }
 
@@ -53,19 +54,11 @@ public:
         return _conf;
     }
 
-    std::string llm_key() const {
-        return _llm.at("key").get<std::string>();
-    }
-
-    const nlohmann::json& llm_params() const {
-        return _llm.at("params");
-    }
-
 private:
     std::string _type;
 
     // {"key" : "xxx", "params" : {}}
-    nlohmann::json _llm;
+    LlmInfo _llm;
 
     nlohmann::json _conf;
 };
@@ -76,7 +69,7 @@ class ApplicationCreator {
 public:
     virtual ~ApplicationCreator() = default;
 
-    virtual ApplicationUPtr create(const nlohmann::json &llm, const nlohmann::json &conf) const = 0;
+    virtual ApplicationUPtr create(const LlmInfo &llm, const nlohmann::json &conf) const = 0;
 };
 
 using ApplicationCreatorUPtr = std::unique_ptr<ApplicationCreator>;
@@ -84,7 +77,7 @@ using ApplicationCreatorUPtr = std::unique_ptr<ApplicationCreator>;
 template <typename T>
 class ApplicationCreatorTpl : public ApplicationCreator {
 public:
-    virtual ApplicationUPtr create(const nlohmann::json &llm, const nlohmann::json &conf) const override {
+    virtual ApplicationUPtr create(const LlmInfo &llm, const nlohmann::json &conf) const override {
         return std::make_unique<T>(llm, conf);
     }
 };
@@ -94,7 +87,7 @@ public:
     ApplicationFactory();
 
     ApplicationUPtr create(const std::string &type,
-            const nlohmann::json &llm, const nlohmann::json &conf) const;
+            const LlmInfo &llm, const nlohmann::json &conf) const;
 
 private:
     void _register(const std::string &type, ApplicationCreatorUPtr creator);

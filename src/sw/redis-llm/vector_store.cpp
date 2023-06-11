@@ -15,9 +15,15 @@
  *************************************************************************/
 
 #include "sw/redis-llm/vector_store.h"
+#include "sw/redis-llm/errors.h"
 #include "sw/redis-llm/hnsw.h"
 
 namespace sw::redis::llm {
+
+void VectorStore::add(const std::string_view &data, const Vector &embedding) {
+    auto id = _auto_gen_id();
+    add(id, data, embedding);
+}
 
 std::size_t VectorStore::dim() const {
     auto iter = _conf.find("dim");
@@ -33,11 +39,15 @@ std::size_t VectorStore::dim() const {
     return dim.get<std::size_t>();
 }
 
+uint64_t VectorStore::_auto_gen_id() {
+    return ++_id_idx;
+}
+
 VectorStoreFactory::VectorStoreFactory() {
     _register("hnsw", std::make_unique<VectorStoreCreatorTpl<Hnsw>>());
 }
 
-VectorStoreUPtr VectorStoreFactory::create(const std::string &type, const nlohmann::json &conf, const std::string &llm) const {
+VectorStoreUPtr VectorStoreFactory::create(const std::string &type, const nlohmann::json &conf, const LlmInfo &llm) const {
     auto iter = _creators.find(type);
     if (iter == _creators.end()) {
         throw Error(std::string("unknown vector store: ") + type);

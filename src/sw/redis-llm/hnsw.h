@@ -24,7 +24,7 @@ namespace sw::redis::llm {
 
 class Hnsw : public VectorStore {
 public:
-    Hnsw(const nlohmann::json &conf, const std::string &llm);
+    Hnsw(const nlohmann::json &conf, const LlmInfo &llm);
 
     virtual void add(uint64_t id, const std::string_view &data, const Vector &embedding) override;
 

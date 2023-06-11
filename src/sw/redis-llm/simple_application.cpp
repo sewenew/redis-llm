@@ -18,7 +18,7 @@
 
 namespace sw::redis::llm {
 
-SimpleApplication::SimpleApplication(const nlohmann::json &llm,
+SimpleApplication::SimpleApplication(const LlmInfo &llm,
         const nlohmann::json &conf) :
     Application("app", llm, conf),
     _prompt(conf.value<std::string>("prompt", "")) {}
@@ -41,7 +41,7 @@ std::string SimpleApplication::run(LlmModel &model, const nlohmann::json &contex
         output += "\n\n";
     }
 
-    output += model.predict(request, llm_params());
+    output += model.predict(request, llm().params);
 
     return output;
 }

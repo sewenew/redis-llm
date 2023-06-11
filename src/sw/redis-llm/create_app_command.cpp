@@ -47,7 +47,7 @@ CreateAppCommand::Args CreateAppCommand::_parse_args(RedisModuleString **argv, i
                 throw Error("syntax error");
             }
             ++idx;
-            args.llm = _parse_llm(util::to_sv(argv[idx]));
+            args.llm = LlmInfo(util::to_sv(argv[idx]));
         } else if (util::str_case_equal(opt, "--PARAMS")) {
             if (idx + 1 >= argc) {
                 throw Error("syntax error");
@@ -68,29 +68,6 @@ CreateAppCommand::Args CreateAppCommand::_parse_args(RedisModuleString **argv, i
     }
 
     return args;
-}
-
-nlohmann::json CreateAppCommand::_parse_llm(const std::string_view &opt) const {
-    nlohmann::json llm;
-    try {
-        if (!opt.empty() && opt.front() == '{') {
-            llm = nlohmann::json::parse(opt.begin(), opt.end());
-        } else {
-            llm["key"] = std::string(opt);
-        }
-
-        if (llm.find("key") == llm.end()) {
-            throw Error("no LLM key is specified");
-        }
-
-        if (llm.find("params") == llm.end()) {
-            llm["params"] = nlohmann::json::object();
-        }
-    } catch (const nlohmann::json::exception &e) {
-        throw Error(std::string("failed to parse llm parameter: ") + e.what());
-    }
-
-    return llm;
 }
 
 }

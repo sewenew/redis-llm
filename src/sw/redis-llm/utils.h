@@ -29,6 +29,23 @@ namespace sw::redis::llm {
 
 using Vector = std::vector<float>;
 
+struct LlmInfo {
+    LlmInfo() = default;
+
+    explicit LlmInfo(const std::string_view &info);
+
+    explicit LlmInfo(nlohmann::json info);
+
+    std::string to_string() const;
+
+    std::string key;
+
+    nlohmann::json params;
+
+private:
+    void _init(nlohmann::json info);
+};
+
 namespace util {
 
 std::string_view to_sv(RedisModuleString *str);

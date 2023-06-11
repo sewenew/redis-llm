@@ -18,6 +18,7 @@
 #define SEWENEW_REDIS_LLM_VECTOR_STORE_H
 
 #include <cstdint>
+#include <atomic>
 #include <optional>
 #include <unordered_map>
 #include <utility>
@@ -28,12 +29,14 @@ namespace sw::redis::llm {
 
 class VectorStore {
 public:
-    VectorStore(const std::string &type, const nlohmann::json &conf, const std::string &llm) :
+    VectorStore(const std::string &type, const nlohmann::json &conf, const LlmInfo &llm) :
         _type(type), _conf(conf), _llm(llm) {}
 
     virtual ~VectorStore() = default;
 
     virtual void add(uint64_t id, const std::string_view &data, const Vector &embedding) = 0;
+
+    void add(const std::string_view &data, const Vector &embedding);
 
     // @return false, if data does not exist. true, otherwise.
     virtual bool rem(uint64_t id) = 0;
@@ -52,7 +55,7 @@ public:
         return _conf;
     }
 
-    const std::string& llm() const {
+    const LlmInfo& llm() const {
         return _llm;
     }
 
@@ -62,15 +65,23 @@ public:
         return _data_store;
     }
 
+    uint64_t id_idx() const {
+        return _id_idx;
+    }
+
 protected:
     std::unordered_map<uint64_t, std::string> _data_store;
 
 private:
+    uint64_t _auto_gen_id();
+
     std::string _type;
 
     nlohmann::json _conf;
 
-    std::string _llm;
+    LlmInfo _llm;
+
+    std::atomic<uint64_t> _id_idx{0};
 };
 
 using VectorStoreUPtr = std::unique_ptr<VectorStore>;
@@ -79,7 +90,7 @@ class VectorStoreCreator {
 public:
     virtual ~VectorStoreCreator() = default;
 
-    virtual VectorStoreUPtr create(const nlohmann::json &conf, const std::string &llm) const = 0;
+    virtual VectorStoreUPtr create(const nlohmann::json &conf, const LlmInfo &llm) const = 0;
 };
 
 using VectorStoreCreatorUPtr = std::unique_ptr<VectorStoreCreator>;
@@ -87,7 +98,7 @@ using VectorStoreCreatorUPtr = std::unique_ptr<VectorStoreCreator>;
 template <typename T>
 class VectorStoreCreatorTpl : public VectorStoreCreator {
 public:
-    virtual VectorStoreUPtr create(const nlohmann::json &conf, const std::string &llm) const override {
+    virtual VectorStoreUPtr create(const nlohmann::json &conf, const LlmInfo &llm) const override {
         return std::make_unique<T>(conf, llm);
     }
 };
@@ -96,13 +107,14 @@ class VectorStoreFactory {
 public:
     VectorStoreFactory();
 
-    VectorStoreUPtr create(const std::string &type, const nlohmann::json &conf, const std::string &llm) const;
+    VectorStoreUPtr create(const std::string &type, const nlohmann::json &conf, const LlmInfo &llm) const;
 
 private:
     void _register(const std::string &type, VectorStoreCreatorUPtr creator);
 
     std::unordered_map<std::string, VectorStoreCreatorUPtr> _creators;
 };
+
 }
 
 #endif // end SEWENEW_REDIS_LLM_VECTOR_STORE_H

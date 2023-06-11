@@ -25,7 +25,7 @@ namespace sw::redis::llm {
 
 class SimpleApplication : public Application {
 public:
-    SimpleApplication(const nlohmann::json &llm, const nlohmann::json &conf);
+    SimpleApplication(const LlmInfo &llm, const nlohmann::json &conf);
 
     virtual std::string run(LlmModel &llm, const nlohmann::json &context, const std::string_view &input, bool verbose) override;
 
