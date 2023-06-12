@@ -25,20 +25,6 @@ Hnsw::Hnsw(const nlohmann::json &conf, const LlmInfo &llm) :
     _hnsw = std::make_unique<hnswlib::HierarchicalNSW<float>>(_space.get(), _opts.max_elements, _opts.m, _opts.ef_construction);
 }
 
-void Hnsw::add(uint64_t id, const std::string_view &data, const Vector &embedding) {
-    if (embedding.size() != _opts.dim) {
-        throw Error("vector dimension does not match");
-    }
-
-    try {
-        _hnsw->addPoint(embedding.data(), id);
-    } catch (const std::exception &e) {
-        throw Error("failed to do set: " + std::to_string(id));
-    }
-
-    _data_store[id] = data;
-}
-
 bool Hnsw::rem(uint64_t id) {
     auto iter = _data_store.find(id);
     if (iter == _data_store.end()) {
@@ -88,6 +74,20 @@ std::vector<std::pair<uint64_t, float>> Hnsw::knn(const Vector &query, std::size
     }
 
     return output;
+}
+
+void Hnsw::_add(uint64_t id, const std::string_view &data, const Vector &embedding) {
+    if (embedding.size() != _opts.dim) {
+        throw Error("vector dimension does not match");
+    }
+
+    try {
+        _hnsw->addPoint(embedding.data(), id);
+    } catch (const std::exception &e) {
+        throw Error("failed to do set: " + std::to_string(id));
+    }
+
+    _data_store[id] = data;
 }
 
 Hnsw::Options Hnsw::_parse_options(const nlohmann::json &conf) const {

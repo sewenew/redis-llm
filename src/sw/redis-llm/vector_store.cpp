@@ -20,9 +20,15 @@
 
 namespace sw::redis::llm {
 
-void VectorStore::add(const std::string_view &data, const Vector &embedding) {
+uint64_t VectorStore::add(uint64_t id, const std::string_view &data, const Vector &embedding) {
+    _add(id, data, embedding);
+
+    return id;
+}
+
+uint64_t VectorStore::add(const std::string_view &data, const Vector &embedding) {
     auto id = _auto_gen_id();
-    add(id, data, embedding);
+    return add(id, data, embedding);
 }
 
 std::size_t VectorStore::dim() const {

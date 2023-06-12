@@ -23,14 +23,14 @@
 namespace sw::redis::llm {
 
 void AddCommand::_run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const {
-    _add(ctx, argv, argc);
+    auto id = _add(ctx, argv, argc);
 
-    RedisModule_ReplyWithSimpleString(ctx, "OK");
+    RedisModule_ReplyWithLongLong(ctx, id);
 
     RedisModule_ReplicateVerbatim(ctx);
 }
 
-void AddCommand::_add(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const {
+uint64_t AddCommand::_add(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const {
     auto args = _parse_args(argv, argc);
 
     auto key = api::open_key(ctx, args.key_name, api::KeyMode::WRITEONLY);
@@ -55,16 +55,18 @@ void AddCommand::_add(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) c
             auto embedding = _get_embedding(ctx, args.data, store->llm().key);
             store->add(*args.id, args.data, embedding);
         }
+
+        return *(args.id);
     } else {
         if (!args.embedding.empty()) {
             if (store->dim() != args.embedding.size()) {
                 throw Error("embedding dimension not match");
             }
 
-            store->add(args.data, args.embedding);
+            return store->add(args.data, args.embedding);
         } else {
             auto embedding = _get_embedding(ctx, args.data, store->llm().key);
-            store->add(args.data, embedding);
+            return store->add(args.data, embedding);
         }
     }
 }

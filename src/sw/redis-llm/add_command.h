@@ -43,7 +43,7 @@ private:
 
     Vector _get_embedding(RedisModuleCtx *ctx, const std::string_view &data, const std::string &llm_key) const;
 
-    void _add(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const;
+    uint64_t _add(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const;
 };
 
 }
