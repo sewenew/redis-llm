@@ -15,6 +15,7 @@
  *************************************************************************/
 
 #include "sw/redis-llm/hnsw.h"
+#include <algorithm>
 
 namespace sw::redis::llm {
 
@@ -81,6 +82,7 @@ std::vector<std::pair<uint64_t, float>> Hnsw::knn(const Vector &query, std::size
             output.emplace_back(ele.second, ele.first);
             res.pop();
         }
+        std::reverse(output.begin(), output.end());
     } catch (const std::exception &e) {
         throw Error("failed to do knn");
     }

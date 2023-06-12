@@ -90,9 +90,9 @@ T* get_value_by_key(RedisModuleKey &key) {
     return val;
 }
 
-LlmModel* get_model_by_key(RedisModuleCtx *ctx, const std::string &key, RedisModuleType *type);
+LlmModel* get_model_by_key(RedisModuleCtx *ctx, const std::string &key);
 
-LlmModel* get_model_by_key(RedisModuleCtx *ctx, RedisModuleString *key, RedisModuleType *type);
+LlmModel* get_model_by_key(RedisModuleCtx *ctx, RedisModuleString *key);
 
 }
 

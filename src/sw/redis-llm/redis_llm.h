@@ -20,7 +20,7 @@
 #include "sw/redis-llm/application.h"
 #include "sw/redis-llm/embedding_model.h"
 #include "sw/redis-llm/llm_model.h"
-#include "sw/redis-llm/module_api.h"
+//#include "sw/redis-llm/module_api.h"
 #include "sw/redis-llm/options.h"
 #include "sw/redis-llm/vector_store.h"
 

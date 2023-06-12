@@ -137,6 +137,22 @@ bool str_case_equal(const std::string_view &s1, const std::string_view &s2) {
     return true;
 }
 
+Vector parse_embedding(const std::string_view &opt) {
+    std::vector<std::string_view> vec;
+    util::split(opt, ",", std::back_inserter(vec));
+    Vector embedding;
+    embedding.reserve(vec.size());
+    for (auto &ele : vec) {
+        try {
+            embedding.push_back(stof(std::string(ele)));
+        } catch (const std::exception &) {
+            throw Error("invalid embedding");
+        }
+    }
+
+    return embedding;
+}
+
 }
 
 namespace io {

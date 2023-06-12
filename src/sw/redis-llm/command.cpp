@@ -16,10 +16,10 @@
 
 #include "sw/redis-llm/command.h"
 #include "sw/redis-llm/add_command.h"
-//#include "sw/redis-llm/ask_command.h"
 #include "sw/redis-llm/create_command.h"
 #include "sw/redis-llm/errors.h"
 #include "sw/redis-llm/get_command.h"
+#include "sw/redis-llm/knn_command.h"
 #include "sw/redis-llm/rem_command.h"
 #include "sw/redis-llm/run_command.h"
 
@@ -107,20 +107,18 @@ void create_commands(RedisModuleCtx *ctx) {
         throw Error("failed to create LLM.RUN command");
     }
 
-    /*
     if (RedisModule_CreateCommand(ctx,
-                "LLM.ASK",
+                "LLM.KNN",
                 [](RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-                    AskCommand cmd;
+                    KnnCommand cmd;
                     return cmd.run(ctx, argv, argc);
                 },
                 "readonly",
                 1,
                 1,
                 1) == REDISMODULE_ERR) {
-        throw Error("failed to create LLM.GET command");
+        throw Error("failed to create LLM.KNN command");
     }
-    */
 }
 
 }

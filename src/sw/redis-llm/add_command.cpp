@@ -103,7 +103,7 @@ AddCommand::Args AddCommand::_parse_args(RedisModuleString **argv, int argc) con
     Args args;
     args.key_name = argv[1];
 
-    auto idx = 0;
+    auto idx = 2;
     while (idx < argc) {
         auto opt = util::to_sv(argv[idx]);
         if (util::str_case_equal(opt, "--ID")) {
@@ -121,7 +121,7 @@ AddCommand::Args AddCommand::_parse_args(RedisModuleString **argv, int argc) con
                 throw Error("syntax error");
             }
             ++idx;
-            args.embedding = _parse_embedding(util::to_sv(argv[idx]));
+            args.embedding = util::parse_embedding(util::to_sv(argv[idx]));
         } else {
             break;
         }
@@ -132,22 +132,6 @@ AddCommand::Args AddCommand::_parse_args(RedisModuleString **argv, int argc) con
     args.data = util::to_sv(argv[idx]);
 
     return args;
-}
-
-Vector AddCommand::_parse_embedding(const std::string_view &opt) const {
-    std::vector<std::string_view> vec;
-    util::split(opt, ",", std::back_inserter(vec));
-    Vector embedding;
-    embedding.reserve(vec.size());
-    for (auto &ele : vec) {
-        try {
-            embedding.push_back(stof(std::string(ele)));
-        } catch (const std::exception &) {
-            throw Error("invalid embedding");
-        }
-    }
-
-    return embedding;
 }
 
 }

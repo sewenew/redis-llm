@@ -14,8 +14,8 @@
    limitations under the License.
  *************************************************************************/
 
-#ifndef SEWENEW_REDIS_LLM_ADD_COMMAND_H
-#define SEWENEW_REDIS_LLM_ADD_COMMAND_H
+#ifndef SEWENEW_REDIS_LLM_KNN_COMMAND_H
+#define SEWENEW_REDIS_LLM_KNN_COMMAND_H
 
 #include "sw/redis-llm/module_api.h"
 #include "sw/redis-llm/command.h"
@@ -23,29 +23,27 @@
 
 namespace sw::redis::llm {
 
-// LLM.ADD key [--ID id] [--EMBEDDING xxx] data
+// LLM.KNN key [--K 10] [--embedding xxx] [query]
 // This command works with VECTOR STORE
-class AddCommand : public Command {
+class KnnCommand : public Command {
 private:
     virtual void _run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const override;
 
     struct Args {
         RedisModuleString *key_name = nullptr;
 
-        std::optional<uint64_t> id;
+        std::string_view query;
 
-        std::string_view data;
+        std::size_t k = 10;
 
         Vector embedding;
     };
 
     Args _parse_args(RedisModuleString **argv, int argc) const;
 
-    Vector _get_embedding(RedisModuleCtx *ctx, const std::string_view &data, const std::string &llm_key) const;
-
-    void _add(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const;
+    std::optional<std::vector<std::pair<uint64_t, float>>> _knn(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const;
 };
 
 }
 
-#endif // end SEWENEW_REDIS_LLM_ADD_COMMAND_H
+#endif // end SEWENEW_REDIS_LLM_KNN_COMMAND_H

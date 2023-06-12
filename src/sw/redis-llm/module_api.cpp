@@ -15,6 +15,7 @@
  *************************************************************************/
 
 #include "sw/redis-llm/module_api.h"
+#include "sw/redis-llm/redis_llm.h"
 #include <cassert>
 
 namespace sw::redis::llm::api {
@@ -65,11 +66,11 @@ int reply_with_error(RedisModuleCtx *ctx, const Error &err) {
     return RedisModule_ReplyWithError(ctx, msg.data());
 }
 
-LlmModel* get_model_by_key(RedisModuleCtx *ctx, const std::string &key_name, RedisModuleType *type) {
+LlmModel* get_model_by_key(RedisModuleCtx *ctx, const std::string &key_name) {
     auto *key_str = RedisModule_CreateString(ctx, key_name.data(), key_name.size());
     LlmModel *model = nullptr;
     try {
-        model = get_model_by_key(ctx, key_str, type);
+        model = get_model_by_key(ctx, key_str);
     } catch (...) {
         RedisModule_FreeString(ctx, key_str);
         throw;
@@ -80,13 +81,13 @@ LlmModel* get_model_by_key(RedisModuleCtx *ctx, const std::string &key_name, Red
     return model;
 }
 
-LlmModel* get_model_by_key(RedisModuleCtx *ctx, RedisModuleString *key_name, RedisModuleType *type) {
-    assert(ctx != nullptr && type != nullptr);
+LlmModel* get_model_by_key(RedisModuleCtx *ctx, RedisModuleString *key_name) {
+    assert(ctx != nullptr);
 
     auto key = open_key(ctx, key_name, api::KeyMode::READONLY);
     assert(key);
 
-    if (!key_exists(key.get(), type)) {
+    if (!key_exists(key.get(), RedisLlm::instance().llm_type())) {
         return nullptr;
     }
 

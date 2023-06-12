@@ -19,6 +19,7 @@
 #include <string>
 #include "sw/redis-llm/command.h"
 #include "sw/redis-llm/errors.h"
+#include "sw/redis-llm/module_api.h"
 #include "nlohmann/json.hpp"
 
 namespace {
