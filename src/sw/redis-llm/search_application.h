@@ -14,25 +14,35 @@
    limitations under the License.
  *************************************************************************/
 
-#ifndef SEWENEW_REDIS_LLM_SIMPLE_APPLICATION_H
-#define SEWENEW_REDIS_LLM_SIMPLE_APPLICATION_H
+#ifndef SEWENEW_REDIS_LLM_SEARCH_APPLICATION_H
+#define SEWENEW_REDIS_LLM_SEARCH_APPLICATION_H
 
+#include <string>
 #include "nlohmann/json.hpp"
 #include "sw/redis-llm/application.h"
 #include "sw/redis-llm/prompt.h"
+#include "sw/redis-llm/vector_store.h"
 
 namespace sw::redis::llm {
 
-class SimpleApplication : public Application {
+class SearchApplication : public Application {
 public:
-    SimpleApplication(const LlmInfo &llm, const nlohmann::json &conf);
+    SearchApplication(const LlmInfo &llm, const nlohmann::json &conf);
 
     virtual std::string run(RedisModuleCtx *ctx, LlmModel &llm, const nlohmann::json &context, const std::string_view &input, bool verbose) override;
 
 private:
+    VectorStore& _get_vector_store(RedisModuleCtx *ctx, const nlohmann::json &context);
+
+    std::vector<std::string> _get_similar_items(const Vector &embedding, VectorStore &store);
+
     Prompt _prompt;
+
+    std::string _vector_store;
+
+    std::size_t _k;
 };
 
 }
 
-#endif // end SEWENEW_REDIS_LLM_SIMPLE_APPLICATION_H
+#endif // end SEWENEW_REDIS_LLM_SEARCH_APPLICATION_H

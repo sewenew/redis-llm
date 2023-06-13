@@ -33,7 +33,6 @@ extern "C" {
 
 #include <memory>
 #include "sw/redis-llm/errors.h"
-#include "sw/redis-llm/llm_model.h"
 
 namespace sw::redis::llm::api {
 
@@ -90,9 +89,40 @@ T* get_value_by_key(RedisModuleKey &key) {
     return val;
 }
 
-LlmModel* get_model_by_key(RedisModuleCtx *ctx, const std::string &key);
+template <typename T>
+T* get_value_by_key(RedisModuleCtx *ctx, RedisModuleString *key_name, RedisModuleType *type) {
+    assert(ctx != nullptr && key_name != nullptr && type != nullptr);
 
-LlmModel* get_model_by_key(RedisModuleCtx *ctx, RedisModuleString *key);
+    auto key = open_key(ctx, key_name, api::KeyMode::READONLY);
+    assert(key);
+
+    if (!key_exists(key.get(), type)) {
+        return nullptr;
+    }
+
+    auto *value = api::get_value_by_key<T>(*key);
+    assert(value != nullptr);
+
+    return value;
+}
+
+template <typename T>
+T* get_value_by_key(RedisModuleCtx *ctx, const std::string &key_name, RedisModuleType *type) {
+    assert(ctx != nullptr && type != nullptr);
+
+    auto *key_str = RedisModule_CreateString(ctx, key_name.data(), key_name.size());
+    T *value = nullptr;
+    try {
+        value = get_value_by_key<T>(ctx, key_str, type);
+    } catch (...) {
+        RedisModule_FreeString(ctx, key_str);
+        throw;
+    }
+
+    RedisModule_FreeString(ctx, key_str);
+
+    return value;
+}
 
 }
 

@@ -55,7 +55,7 @@ std::optional<std::vector<std::pair<uint64_t, float>>> KnnCommand::_knn(RedisMod
             throw Error("no query is specified");
         }
 
-        auto *model = api::get_model_by_key(ctx, store->llm().key);
+        auto *model = api::get_value_by_key<LlmModel>(ctx, store->llm().key, llm.llm_type());
         if (model == nullptr) {
             throw Error("LLM model does not exist: " + store->llm().key);
         }

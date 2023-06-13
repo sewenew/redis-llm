@@ -38,7 +38,7 @@ std::string RunCommand::_run_impl(RedisModuleCtx *ctx, RedisModuleString **argv,
     }
 
     auto *app = api::get_value_by_key<Application>(*key);
-    auto *model = api::get_model_by_key(ctx, app->llm().key);
+    auto *model = api::get_value_by_key<LlmModel>(ctx, app->llm().key, llm.llm_type());
     if (model == nullptr) {
         throw Error("LLM model does not exist");
     }
@@ -48,7 +48,7 @@ std::string RunCommand::_run_impl(RedisModuleCtx *ctx, RedisModuleString **argv,
         context["vars"] = args.vars;
     }
 
-    return app->run(*model, context, args.input, args.verbose);
+    return app->run(ctx, *model, context, args.input, args.verbose);
 }
 
 RunCommand::Args RunCommand::_parse_args(RedisModuleString **argv, int argc) const {

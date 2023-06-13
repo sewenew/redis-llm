@@ -14,54 +14,35 @@
    limitations under the License.
  *************************************************************************/
 
-#ifndef SEWENEW_REDIS_LLM_CREATE_COMMAND_H
-#define SEWENEW_REDIS_LLM_CREATE_COMMAND_H
+#ifndef SEWENEW_REDIS_LLM_CREATE_SEARCH_COMMAND_H
+#define SEWENEW_REDIS_LLM_CREATE_SEARCH_COMMAND_H
 
 #include "nlohmann/json.hpp"
 #include "sw/redis-llm/command.h"
 #include "sw/redis-llm/module_api.h"
+#include "sw/redis-llm/utils.h"
 
 namespace sw::redis::llm {
 
-class CreateCommand : public Command {
+// LLM.CREATE SEARCH key [--NX] [--XX] --LLM llm-info [--K 10] --VECTOR_STORE xxx [--PROMPT prompt]
+class CreateSearchCommand : public Command {
+public:
+    explicit CreateSearchCommand(RedisModuleKey &key) : _key(key) {}
+
 private:
     virtual void _run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const override;
 
-    enum class SubCmd {
-        LLM = 0,
-        EMBEDDING,
-        VECTOR_STORE,
-        PROMPT,
-        APP,
-        SEARCH,
-        NONE
-    };
-
-    SubCmd _parse_sub_cmd(const std::string_view &opt) const;
-
     struct Args {
-        enum class Opt {
-            NX = 0,
-            XX,
-            NONE
-        };
+        LlmInfo llm;
 
-        Opt opt = Opt::NONE;
-
-        SubCmd sub_cmd = SubCmd::NONE;
-
-        RedisModuleString *key_name = nullptr;
-
-        std::vector<std::string_view> args;
+        nlohmann::json params = nlohmann::json::object();
     };
 
     Args _parse_args(RedisModuleString **argv, int argc) const;
 
-    nlohmann::json _parse_config(RedisModuleString *str) const;
-
-    int _create(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const;
+    RedisModuleKey &_key;
 };
 
 }
 
-#endif // end SEWENEW_REDIS_LLM_CREATE_COMMAND_H
+#endif // end SEWENEW_REDIS_LLM_CREATE_SEARCH_COMMAND_H

@@ -18,6 +18,7 @@
 #include <cassert>
 #include "sw/redis-llm/errors.h"
 #include "sw/redis-llm/simple_application.h"
+#include "sw/redis-llm/search_application.h"
 
 namespace sw::redis::llm {
 
@@ -27,6 +28,7 @@ Application::Application(const std::string &type,
 
 ApplicationFactory::ApplicationFactory() {
     _register("app", std::make_unique<ApplicationCreatorTpl<SimpleApplication>>());
+    _register("search", std::make_unique<ApplicationCreatorTpl<SearchApplication>>());
 }
 
 ApplicationUPtr ApplicationFactory::create(const std::string &type,

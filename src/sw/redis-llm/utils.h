@@ -22,7 +22,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
-#include <nlohmann/json.hpp>
+#include "nlohmann/json.hpp"
 #include "sw/redis-llm/module_api.h"
 
 namespace sw::redis::llm {

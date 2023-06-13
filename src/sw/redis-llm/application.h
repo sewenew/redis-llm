@@ -22,8 +22,9 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
-#include <nlohmann/json.hpp>
+#include "nlohmann/json.hpp"
 #include "sw/redis-llm/llm_model.h"
+#include "sw/redis-llm/redismodule.h"
 #include "sw/redis-llm/utils.h"
 
 namespace sw::redis::llm {
@@ -40,7 +41,7 @@ public:
 
     virtual ~Application() = default;
 
-    virtual std::string run(LlmModel &llm, const nlohmann::json &context, const std::string_view &input, bool verbose) = 0;
+    virtual std::string run(RedisModuleCtx *ctx, LlmModel &llm, const nlohmann::json &context, const std::string_view &input, bool verbose) = 0;
 
     const std::string& type() const {
         return _type;
