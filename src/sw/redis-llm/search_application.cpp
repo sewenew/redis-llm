@@ -22,13 +22,16 @@ namespace sw::redis::llm {
 SearchApplication::SearchApplication(const LlmInfo &llm,
         const nlohmann::json &conf) :
     Application("search", llm, conf),
-    _prompt(conf.value<std::string>("prompt", "")),
-    _vector_store(conf.at("vector_store").get<std::string>()) {}
+    _prompt(conf.value<std::string>("prompt", _default_prompt)),
+    _vector_store(conf.at("vector_store").get<std::string>()),
+    _k(conf.at("k").get<std::size_t>()) {}
 
 std::string SearchApplication::run(RedisModuleCtx *ctx, LlmModel &model, const nlohmann::json &context, const std::string_view &input, bool verbose) {
+    /*
     if (context.is_null()) {
         throw Error("no context is specified");
     }
+    */
 
     auto &store = _get_vector_store(ctx, context);
     auto *store_model = api::get_value_by_key<LlmModel>(ctx, store.llm().key, RedisLlm::instance().llm_type());
@@ -43,12 +46,16 @@ std::string SearchApplication::run(RedisModuleCtx *ctx, LlmModel &model, const n
     if (!context.is_null()) {
         vars = context.value<nlohmann::json>("vars", nlohmann::json::object());
     }
-    auto request = _prompt.render(vars);
-
-    if (!request.empty()) {
-        request += "\n\n";
+    vars["question"] = std::string(input);
+    std::string ctx_var;
+    for (auto &item : similar_items) {
+        if (!ctx_var.empty()) {
+            ctx_var += "\n";
+        }
+        ctx_var += item;
     }
-    request += input;
+    vars["context"] = ctx_var;
+    auto request = _prompt.render(vars);
 
     std::string output;
     if (verbose) {
@@ -62,6 +69,7 @@ std::string SearchApplication::run(RedisModuleCtx *ctx, LlmModel &model, const n
 }
 
 VectorStore& SearchApplication::_get_vector_store(RedisModuleCtx *ctx, const nlohmann::json &context) {
+    /*
     auto iter = context.find("vector_store");
     if (iter == context.end()) {
         throw Error("no vector store is specified");
@@ -73,8 +81,10 @@ VectorStore& SearchApplication::_get_vector_store(RedisModuleCtx *ctx, const nlo
     } catch (const std::exception &e) {
         throw Error("vector store key should be string");
     }
+    */
 
-    auto *store = api::get_value_by_key<VectorStore>(ctx, store_key, RedisLlm::instance().vector_store_type());
+    //auto *store = api::get_value_by_key<VectorStore>(ctx, store_key, RedisLlm::instance().vector_store_type());
+    auto *store = api::get_value_by_key<VectorStore>(ctx, _vector_store, RedisLlm::instance().vector_store_type());
     if (store == nullptr) {
         throw Error("vector store does not exist");
     }

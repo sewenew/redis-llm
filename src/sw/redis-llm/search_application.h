@@ -41,6 +41,15 @@ private:
     std::string _vector_store;
 
     std::size_t _k;
+
+    inline static const std::string _default_prompt = R"(Please answer the following question based on the given context.
+Context: """
+{{context}}
+"""
+Question: """
+{{question}}
+"""
+Answer: )";
 };
 
 }
