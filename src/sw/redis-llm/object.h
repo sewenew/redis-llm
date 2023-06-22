@@ -14,21 +14,21 @@
    limitations under the License.
  *************************************************************************/
 
-#ifndef SEWENEW_REDIS_LLM_OPTIONS_H
-#define SEWENEW_REDIS_LLM_OPTIONS_H
+#ifndef SEWENEW_REDIS_LLM_OBJECT_H
+#define SEWENEW_REDIS_LLM_OBJECT_H
 
-#include "sw/redis-llm/module_api.h"
-#include "sw/redis-llm/worker_pool.h"
-#include <string>
+#include <memory>
 
 namespace sw::redis::llm {
 
-struct Options {
-    void load(RedisModuleString **argv, int argc);
-
-    WorkerPoolOptions worker_pool_opts;
+// Base class for all native structures.
+class Object : public std::enable_shared_from_this<Object> {
+public:
+    virtual ~Object() = default;
 };
+
+using ObjectSPtr = std::shared_ptr<Object>;
 
 }
 
-#endif // end SEWENEW_REDIS_LLM_OPTIONS_H
+#endif // end SEWENEW_REDIS_LLM_OBJECT_H

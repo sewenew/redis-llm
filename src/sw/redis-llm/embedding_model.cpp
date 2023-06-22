@@ -25,7 +25,7 @@ EmbeddingModelFactory::EmbeddingModelFactory() {
     _register("openai", std::make_unique<EmbeddingModelCreatorTpl<OpenAiEmbedding>>());
 }
 
-EmbeddingModelUPtr EmbeddingModelFactory::create(const std::string &type, const nlohmann::json &conf) const {
+EmbeddingModelSPtr EmbeddingModelFactory::create(const std::string &type, const nlohmann::json &conf) const {
     auto iter = _creators.find(type);
     if (iter == _creators.end()) {
         throw Error(std::string("unknown embedding model: ") + type);

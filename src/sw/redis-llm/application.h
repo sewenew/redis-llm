@@ -25,11 +25,12 @@
 #include "nlohmann/json.hpp"
 #include "sw/redis-llm/llm_model.h"
 #include "sw/redis-llm/redismodule.h"
+#include "sw/redis-llm/object.h"
 #include "sw/redis-llm/utils.h"
 
 namespace sw::redis::llm {
 
-class Application {
+class Application : public Object {
 public:
     Application(const std::string &type, const LlmInfo &llm, const nlohmann::json &conf);
 
@@ -64,13 +65,13 @@ private:
     nlohmann::json _conf;
 };
 
-using ApplicationUPtr = std::unique_ptr<Application>;
+using ApplicationSPtr = std::shared_ptr<Application>;
 
 class ApplicationCreator {
 public:
     virtual ~ApplicationCreator() = default;
 
-    virtual ApplicationUPtr create(const LlmInfo &llm, const nlohmann::json &conf) const = 0;
+    virtual ApplicationSPtr create(const LlmInfo &llm, const nlohmann::json &conf) const = 0;
 };
 
 using ApplicationCreatorUPtr = std::unique_ptr<ApplicationCreator>;
@@ -78,8 +79,8 @@ using ApplicationCreatorUPtr = std::unique_ptr<ApplicationCreator>;
 template <typename T>
 class ApplicationCreatorTpl : public ApplicationCreator {
 public:
-    virtual ApplicationUPtr create(const LlmInfo &llm, const nlohmann::json &conf) const override {
-        return std::make_unique<T>(llm, conf);
+    virtual ApplicationSPtr create(const LlmInfo &llm, const nlohmann::json &conf) const override {
+        return std::make_shared<T>(llm, conf);
     }
 };
 
@@ -87,7 +88,7 @@ class ApplicationFactory {
 public:
     ApplicationFactory();
 
-    ApplicationUPtr create(const std::string &type,
+    ApplicationSPtr create(const std::string &type,
             const LlmInfo &llm, const nlohmann::json &conf) const;
 
 private:

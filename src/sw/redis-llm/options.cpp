@@ -29,28 +29,34 @@ void Options::load(RedisModuleString **argv, int argc) {
     while (idx < argc) {
         auto opt = util::to_sv(argv[idx]);
 
-        if (util::str_case_equal(opt, "--DIR")) {
-            /*
-            if (!opts.proto_dir.empty()) {
-                throw Error("duplicate --DIR option");
+        if (util::str_case_equal(opt, "--POOL_SIZE")) {
+            if (idx + 1 >= argc) {
+                throw Error("syntax error");
             }
-
             ++idx;
 
-            opts.proto_dir = util::sv_to_string(StringView(argv[idx]));
-            */
+            try {
+                opts.worker_pool_opts.pool_size = std::stoul(util::to_string(argv[idx]));
+            } catch (const std::exception &) {
+                throw Error("invalid id");
+            }
+        } else if (util::str_case_equal(opt, "--QUEUE_SIZE")) {
+            if (idx + 1 >= argc) {
+                throw Error("syntax error");
+            }
+            ++idx;
+
+            try {
+                opts.worker_pool_opts.queue_size = std::stoul(util::to_string(argv[idx]));
+            } catch (const std::exception &) {
+                throw Error("invalid id");
+            }
         } else {
             throw Error("unknown option: " + std::string(opt));
         }
 
         ++idx;
     }
-
-    /*
-    if (opts.proto_dir.empty()) {
-        throw Error("option '--DIR dir' is required");
-    }
-    */
 
     *this = std::move(opts);
 }

@@ -25,7 +25,7 @@
 
 namespace sw::redis::llm {
 
-// LLM.RUN key [--VARS '{"user" : "Jim"}'] [--PARAMS '{}'] [--VERBOSE] [input]
+// LLM.RUN key [--VARS '{"user" : "Jim"}'] [--PARAMS '{}'] [--VERBOSE] [--TIMEOUT in-milliseconds] [input]
 // This command works with APP
 class RunCommand : public Command {
 private:

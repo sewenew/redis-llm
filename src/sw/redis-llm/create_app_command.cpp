@@ -23,12 +23,11 @@ void CreateAppCommand::_run(RedisModuleCtx *ctx, RedisModuleString **argv, int a
     auto args = _parse_args(argv, argc);
 
     auto &llm = RedisLlm::instance();
-    auto app = llm.app_factory().create(args.type, args.llm, args.params);
+    auto app = llm.create_application(args.type, args.llm, args.params);
     if (RedisModule_ModuleTypeSetValue(&_key, llm.app_type(), app.get()) != REDISMODULE_OK) {
+        llm.unregister_object(app);
         throw Error("failed to create APP");
     }
-
-    app.release();
 }
 
 CreateAppCommand::Args CreateAppCommand::_parse_args(RedisModuleString **argv, int argc) const {

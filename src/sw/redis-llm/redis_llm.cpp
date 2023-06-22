@@ -93,6 +93,8 @@ void RedisLlm::load(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
     _options.load(argv, argc);
 
+    _worker_pool = std::make_unique<WorkerPool>(_options.worker_pool_opts);
+
     RedisModuleTypeMethods llm_methods = {
         REDISMODULE_TYPE_METHOD_VERSION,
         _rdb_load_llm,
@@ -148,6 +150,38 @@ void RedisLlm::load(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     }
 
     cmd::create_commands(ctx);
+}
+
+LlmModelSPtr RedisLlm::create_llm(const std::string &type, const nlohmann::json &conf) {
+    auto model = _llm_factory.create(type, conf);
+
+    _register_object(model);
+
+    return model;
+}
+
+EmbeddingModelSPtr RedisLlm::create_embedding(const std::string &type, const nlohmann::json &conf) {
+    auto embedding = _embedding_factory.create(type, conf);
+
+    _register_object(embedding);
+
+    return embedding;
+}
+
+VectorStoreSPtr RedisLlm::create_vector_store(const std::string &type, const nlohmann::json &conf, LlmInfo &llm) {
+    auto store = _vector_store_factory.create(type, conf, llm);
+
+    _register_object(store);
+
+    return store;
+}
+
+ApplicationSPtr RedisLlm::create_application(const std::string &type, const LlmInfo &llm, const nlohmann::json &conf) {
+    auto app = _app_factory.create(type, llm, conf);
+
+    _register_object(app);
+
+    return app;
 }
 
 void* RedisLlm::_rdb_load_llm(RedisModuleIO *rdb, int encver) {
@@ -217,7 +251,8 @@ void RedisLlm::_aof_rewrite_llm(RedisModuleIO *aof, RedisModuleString *key, void
 void RedisLlm::_free_llm(void *value) {
     if (value != nullptr) {
         auto *llm = static_cast<LlmModel *>(value);
-        delete llm;
+        auto obj = llm->shared_from_this();
+        instance().unregister_object(obj);
     }
 }
 
@@ -291,7 +326,8 @@ void RedisLlm::_aof_rewrite_vector_store(RedisModuleIO *aof, RedisModuleString *
 void RedisLlm::_free_vector_store(void *value) {
     if (value != nullptr) {
         auto *store = static_cast<VectorStore *>(value);
-        delete store;
+        auto obj = store->shared_from_this();
+        instance().unregister_object(obj);
     }
 }
 
@@ -367,7 +403,8 @@ void RedisLlm::_aof_rewrite_app(RedisModuleIO *aof, RedisModuleString *key, void
 void RedisLlm::_free_app(void *value) {
     if (value != nullptr) {
         auto *app = static_cast<Application *>(value);
-        delete app;
+        auto obj = app->shared_from_this();
+        instance().unregister_object(obj);
     }
 }
 
@@ -504,9 +541,9 @@ void* rdb_load_llm(RedisModuleIO *rdb) {
     auto type = to_string(rdb_load_string(rdb));;
     auto conf = rdb_load_config(rdb);
 
-    auto model = llm.llm_factory().create(type, conf);
+    auto model = llm.create_llm(type, conf);
 
-    return model.release();
+    return model.get();
 }
 
 void* rdb_load_app(RedisModuleIO *rdb) {
@@ -515,9 +552,9 @@ void* rdb_load_app(RedisModuleIO *rdb) {
     LlmInfo llm_info(to_sv(info_str));
     auto conf = rdb_load_config(rdb);
 
-    auto app = RedisLlm::instance().app_factory().create(type, llm_info, conf);
+    auto app = RedisLlm::instance().create_application(type, llm_info, conf);
 
-    return app.release();
+    return app.get();
 }
 
 void* rdb_load_vector_store(RedisModuleIO *rdb) {
@@ -527,11 +564,11 @@ void* rdb_load_vector_store(RedisModuleIO *rdb) {
     auto info_str = rdb_load_string(rdb);
     LlmInfo llm_info(to_sv(info_str));
 
-    auto store = llm.vector_store_factory().create(type, conf, llm_info);
+    auto store = llm.create_vector_store(type, conf, llm_info);
 
     rdb_load_vector_store(rdb, *store);
 
-    return store.release();
+    return store.get();
 }
 
 void rewrite_vector_store(RedisModuleIO *aof, RedisModuleString *key, VectorStore &store) {

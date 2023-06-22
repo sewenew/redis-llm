@@ -23,10 +23,11 @@
 #include <unordered_map>
 #include <vector>
 #include "nlohmann/json.hpp"
+#include "sw/redis-llm/object.h"
 
 namespace sw::redis::llm {
 
-class LlmModel {
+class LlmModel : public Object {
 public:
     LlmModel(const std::string &type, const nlohmann::json &conf) : _type(type), _conf(conf) {}
 
@@ -50,13 +51,13 @@ private:
     nlohmann::json _conf;
 };
 
-using LlmModelUPtr = std::unique_ptr<LlmModel>;
+using LlmModelSPtr = std::shared_ptr<LlmModel>;
 
 class LlmModelCreator {
 public:
     virtual ~LlmModelCreator() = default;
 
-    virtual LlmModelUPtr create(const nlohmann::json &conf) const = 0;
+    virtual LlmModelSPtr create(const nlohmann::json &conf) const = 0;
 };
 
 using LlmModelCreatorUPtr = std::unique_ptr<LlmModelCreator>;
@@ -64,8 +65,8 @@ using LlmModelCreatorUPtr = std::unique_ptr<LlmModelCreator>;
 template <typename T>
 class LlmModelCreatorTpl : public LlmModelCreator {
 public:
-    virtual LlmModelUPtr create(const nlohmann::json &conf) const override {
-        return std::make_unique<T>(conf);
+    virtual LlmModelSPtr create(const nlohmann::json &conf) const override {
+        return std::make_shared<T>(conf);
     }
 };
 
@@ -73,7 +74,7 @@ class LlmModelFactory {
 public:
     LlmModelFactory();
 
-    LlmModelUPtr create(const std::string &type, const nlohmann::json &conf) const;
+    LlmModelSPtr create(const std::string &type, const nlohmann::json &conf) const;
 
 private:
     void _register(const std::string &type, LlmModelCreatorUPtr creator);

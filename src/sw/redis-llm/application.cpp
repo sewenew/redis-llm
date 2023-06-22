@@ -31,7 +31,7 @@ ApplicationFactory::ApplicationFactory() {
     _register("search", std::make_unique<ApplicationCreatorTpl<SearchApplication>>());
 }
 
-ApplicationUPtr ApplicationFactory::create(const std::string &type,
+ApplicationSPtr ApplicationFactory::create(const std::string &type,
         const LlmInfo &llm, const nlohmann::json &conf) const {
     auto iter = _creators.find(type);
     if (iter == _creators.end()) {
