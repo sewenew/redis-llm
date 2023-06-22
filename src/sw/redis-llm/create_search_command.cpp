@@ -23,12 +23,11 @@ void CreateSearchCommand::_run(RedisModuleCtx *ctx, RedisModuleString **argv, in
     auto args = _parse_args(argv, argc);
 
     auto &llm = RedisLlm::instance();
-    auto app = llm.app_factory().create("search", args.llm, args.params);
+    auto app = llm.create_application("search", args.llm, args.params);
     if (RedisModule_ModuleTypeSetValue(&_key, llm.app_type(), app.get()) != REDISMODULE_OK) {
+        llm.unregister_object(app);
         throw Error("failed to create APP");
     }
-
-    app.release();
 }
 
 CreateSearchCommand::Args CreateSearchCommand::_parse_args(RedisModuleString **argv, int argc) const {
@@ -73,6 +72,10 @@ CreateSearchCommand::Args CreateSearchCommand::_parse_args(RedisModuleString **a
 
     if (args.params.find("vector_store") == args.params.end()) {
         throw Error("no vector store is specified");
+    }
+
+    if (args.params.find("k") == args.params.end()) {
+        args.params["k"] = 10;
     }
 
     return args;

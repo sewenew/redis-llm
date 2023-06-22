@@ -27,7 +27,7 @@ LlmModelFactory::LlmModelFactory() {
     _register("llamacpp", std::make_unique<LlmModelCreatorTpl<LlamaCpp>>());
 }
 
-LlmModelUPtr LlmModelFactory::create(const std::string &type, const nlohmann::json &conf) const {
+LlmModelSPtr LlmModelFactory::create(const std::string &type, const nlohmann::json &conf) const {
     auto iter = _creators.find(type);
     if (iter == _creators.end()) {
         throw Error(std::string("unknown LLM model: ") + type);

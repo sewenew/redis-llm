@@ -25,12 +25,11 @@ void CreateLlmCommand::_run(RedisModuleCtx *ctx, RedisModuleString **argv, int a
     auto args = _parse_args(argv, argc);
 
     auto &llm = RedisLlm::instance();
-    auto model = llm.llm_factory().create(args.type, args.params);
+    auto model = llm.create_llm(args.type, args.params);
     if (RedisModule_ModuleTypeSetValue(&_key, llm.llm_type(), model.get()) != REDISMODULE_OK) {
+        llm.unregister_object(model);
         throw Error("failed to create LLM model");
     }
-
-    model.release();
 }
 
 CreateLlmCommand::Args CreateLlmCommand::_parse_args(RedisModuleString **argv, int argc) const {

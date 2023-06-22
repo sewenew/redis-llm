@@ -23,11 +23,12 @@
 #include <unordered_map>
 #include <utility>
 #include "nlohmann/json.hpp"
+#include "sw/redis-llm/object.h"
 #include "sw/redis-llm/utils.h"
 
 namespace sw::redis::llm {
 
-class VectorStore {
+class VectorStore : public Object {
 public:
     VectorStore(const std::string &type, const nlohmann::json &conf, const LlmInfo &llm) :
         _type(type), _conf(conf), _llm(llm) {}
@@ -86,13 +87,13 @@ private:
     std::atomic<uint64_t> _id_idx{0};
 };
 
-using VectorStoreUPtr = std::unique_ptr<VectorStore>;
+using VectorStoreSPtr = std::shared_ptr<VectorStore>;
 
 class VectorStoreCreator {
 public:
     virtual ~VectorStoreCreator() = default;
 
-    virtual VectorStoreUPtr create(const nlohmann::json &conf, const LlmInfo &llm) const = 0;
+    virtual VectorStoreSPtr create(const nlohmann::json &conf, const LlmInfo &llm) const = 0;
 };
 
 using VectorStoreCreatorUPtr = std::unique_ptr<VectorStoreCreator>;
@@ -100,8 +101,8 @@ using VectorStoreCreatorUPtr = std::unique_ptr<VectorStoreCreator>;
 template <typename T>
 class VectorStoreCreatorTpl : public VectorStoreCreator {
 public:
-    virtual VectorStoreUPtr create(const nlohmann::json &conf, const LlmInfo &llm) const override {
-        return std::make_unique<T>(conf, llm);
+    virtual VectorStoreSPtr create(const nlohmann::json &conf, const LlmInfo &llm) const override {
+        return std::make_shared<T>(conf, llm);
     }
 };
 
@@ -109,7 +110,7 @@ class VectorStoreFactory {
 public:
     VectorStoreFactory();
 
-    VectorStoreUPtr create(const std::string &type, const nlohmann::json &conf, const LlmInfo &llm) const;
+    VectorStoreSPtr create(const std::string &type, const nlohmann::json &conf, const LlmInfo &llm) const;
 
 private:
     void _register(const std::string &type, VectorStoreCreatorUPtr creator);

@@ -17,12 +17,15 @@
 #ifndef SEWENEW_REDIS_LLM_REDIS_LLM_H
 #define SEWENEW_REDIS_LLM_REDIS_LLM_H
 
+#include <unordered_set>
+#include <nlohmann/json.hpp>
 #include "sw/redis-llm/application.h"
 #include "sw/redis-llm/embedding_model.h"
 #include "sw/redis-llm/llm_model.h"
-//#include "sw/redis-llm/module_api.h"
+#include "sw/redis-llm/object.h"
 #include "sw/redis-llm/options.h"
 #include "sw/redis-llm/vector_store.h"
+#include "sw/redis-llm/worker_pool.h"
 
 namespace sw::redis::llm {
 
@@ -78,24 +81,28 @@ public:
         return _options;
     }
 
-    LlmModelFactory& llm_factory() {
-        return _llm_factory;
+    LlmModelSPtr create_llm(const std::string &type, const nlohmann::json &conf);
+
+    EmbeddingModelSPtr create_embedding(const std::string &type, const nlohmann::json &conf);
+
+    VectorStoreSPtr create_vector_store(const std::string &type, const nlohmann::json &conf, LlmInfo &llm);
+
+    ApplicationSPtr create_application(const std::string &type, const LlmInfo &llm, const nlohmann::json &conf);
+
+    void unregister_object(const ObjectSPtr &obj) {
+        _object_pool.erase(obj);
     }
 
-    EmbeddingModelFactory& embedding_factory() {
-        return _embedding_factory;
-    }
-
-    VectorStoreFactory& vector_store_factory() {
-        return _vector_store_factory;
-    }
-
-    ApplicationFactory& app_factory() {
-        return _app_factory;
+    WorkerPool& worker_pool() {
+        return *_worker_pool;
     }
 
 private:
     RedisLlm() = default;
+
+    void _register_object(const ObjectSPtr &obj) {
+        _object_pool.insert(obj);
+    }
 
     static void* _rdb_load_llm(RedisModuleIO *rdb, int encver);
 
@@ -148,6 +155,10 @@ private:
     VectorStoreFactory _vector_store_factory;
 
     ApplicationFactory _app_factory;
+
+    std::unique_ptr<WorkerPool> _worker_pool;
+
+    std::unordered_set<ObjectSPtr> _object_pool;
 };
 
 }

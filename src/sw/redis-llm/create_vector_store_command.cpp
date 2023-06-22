@@ -25,12 +25,11 @@ void CreateVectorStoreCommand::_run(RedisModuleCtx *ctx, RedisModuleString **arg
     auto args = _parse_args(argv, argc);
 
     auto &llm = RedisLlm::instance();
-    auto store = llm.vector_store_factory().create(args.type, args.params, args.llm);
+    auto store = llm.create_vector_store(args.type, args.params, args.llm);
     if (RedisModule_ModuleTypeSetValue(&_key, llm.vector_store_type(), store.get()) != REDISMODULE_OK) {
+        llm.unregister_object(store);
         throw Error("failed to create vector store");
     }
-
-    store.release();
 }
 
 CreateVectorStoreCommand::Args CreateVectorStoreCommand::_parse_args(RedisModuleString **argv, int argc) const {

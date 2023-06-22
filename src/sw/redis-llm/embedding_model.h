@@ -23,10 +23,11 @@
 #include <unordered_map>
 #include <vector>
 #include "nlohmann/json.hpp"
+#include "sw/redis-llm/object.h"
 
 namespace sw::redis::llm {
 
-class EmbeddingModel {
+class EmbeddingModel : public Object {
 public:
     EmbeddingModel(const std::string &type, const nlohmann::json &conf) : _type(type), _conf(conf) {}
 
@@ -48,13 +49,13 @@ private:
     nlohmann::json _conf;
 };
 
-using EmbeddingModelUPtr = std::unique_ptr<EmbeddingModel>;
+using EmbeddingModelSPtr = std::shared_ptr<EmbeddingModel>;
 
 class EmbeddingModelCreator {
 public:
     virtual ~EmbeddingModelCreator() = default;
 
-    virtual EmbeddingModelUPtr create(const std::string &type, const nlohmann::json &conf) const = 0;
+    virtual EmbeddingModelSPtr create(const std::string &type, const nlohmann::json &conf) const = 0;
 };
 
 using EmbeddingModelCreatorUPtr = std::unique_ptr<EmbeddingModelCreator>;
@@ -62,8 +63,8 @@ using EmbeddingModelCreatorUPtr = std::unique_ptr<EmbeddingModelCreator>;
 template <typename T>
 class EmbeddingModelCreatorTpl : public EmbeddingModelCreator {
 public:
-    virtual EmbeddingModelUPtr create(const std::string &type, const nlohmann::json &conf) const override {
-        return std::make_unique<T>(conf);
+    virtual EmbeddingModelSPtr create(const std::string &type, const nlohmann::json &conf) const override {
+        return std::make_shared<T>(conf);
     }
 };
 
@@ -71,7 +72,7 @@ class EmbeddingModelFactory {
 public:
     EmbeddingModelFactory();
 
-    EmbeddingModelUPtr create(const std::string &type, const nlohmann::json &conf) const;
+    EmbeddingModelSPtr create(const std::string &type, const nlohmann::json &conf) const;
 
 private:
     void _register(const std::string &type, EmbeddingModelCreatorUPtr creator);
