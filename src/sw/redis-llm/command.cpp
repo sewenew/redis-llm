@@ -22,6 +22,7 @@
 #include "sw/redis-llm/knn_command.h"
 #include "sw/redis-llm/rem_command.h"
 #include "sw/redis-llm/run_command.h"
+#include "sw/redis-llm/size_command.h"
 
 namespace sw::redis::llm {
 
@@ -118,6 +119,19 @@ void create_commands(RedisModuleCtx *ctx) {
                 1,
                 1) == REDISMODULE_ERR) {
         throw Error("failed to create LLM.KNN command");
+    }
+
+    if (RedisModule_CreateCommand(ctx,
+                "LLM.SIZE",
+                [](RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+                    SizeCommand cmd;
+                    return cmd.run(ctx, argv, argc);
+                },
+                "readonly",
+                1,
+                1,
+                1) == REDISMODULE_ERR) {
+        throw Error("failed to create LLM.SIZE command");
     }
 }
 
