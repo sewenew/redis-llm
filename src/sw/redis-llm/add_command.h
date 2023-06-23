@@ -17,13 +17,16 @@
 #ifndef SEWENEW_REDIS_LLM_ADD_COMMAND_H
 #define SEWENEW_REDIS_LLM_ADD_COMMAND_H
 
-#include "sw/redis-llm/module_api.h"
+#include <exception>
 #include "sw/redis-llm/command.h"
+#include "sw/redis-llm/llm_model.h"
+#include "sw/redis-llm/module_api.h"
+#include "sw/redis-llm/vector_store.h"
 #include "sw/redis-llm/utils.h"
 
 namespace sw::redis::llm {
 
-// LLM.ADD key [--ID id] [--EMBEDDING xxx] data
+// LLM.ADD key [--ID id] [--EMBEDDING xxx] [--TIMEOUT in-milliseconds] data
 // This command works with VECTOR STORE
 class AddCommand : public Command {
 private:
@@ -37,13 +40,34 @@ private:
         std::string_view data;
 
         Vector embedding;
+
+        std::chrono::milliseconds timeout{0};
+    };
+
+    struct AsyncResult {
+        uint64_t id = 0;
+        std::exception_ptr err;
     };
 
     Args _parse_args(RedisModuleString **argv, int argc) const;
 
     Vector _get_embedding(RedisModuleCtx *ctx, const std::string_view &data, const std::string &llm_key) const;
 
-    uint64_t _add(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const;
+    uint64_t _add(RedisModuleCtx *ctx, const Args &args) const;
+
+    void _blocking_add(RedisModuleCtx *ctx, const Args &args) const;
+
+    void _async_add(RedisModuleBlockedClient *blocked_client,
+            const Args &args, const VectorStoreSPtr &store,
+            const LlmModelSPtr &model) const;
+
+    VectorStore* _get_vector_store(RedisModuleCtx *ctx, RedisModuleString *key_name) const;
+
+    static int _reply_func(RedisModuleCtx *ctx, RedisModuleString **argv, int argc);
+
+    static int _timeout_func(RedisModuleCtx *ctx, RedisModuleString **argv, int argc);
+
+    static void _free_func(RedisModuleCtx *ctx, void *privdata);
 };
 
 }
