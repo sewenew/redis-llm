@@ -22,33 +22,49 @@
 namespace sw::redis::llm {
 
 void RunCommand::_run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const {
-    auto res = _run_impl(ctx, argv, argc);
-    RedisModule_ReplyWithStringBuffer(ctx, res.data(), res.size());
-}
-
-std::string RunCommand::_run_impl(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const {
     auto args = _parse_args(argv, argc);
 
-    auto key = api::open_key(ctx, args.key_name, api::KeyMode::READONLY);
-    assert(key);
-
     auto &llm = RedisLlm::instance();
-    if (!api::key_exists(key.get(), llm.app_type())) {
-        throw Error("app does not exist, call LLM.CREATE APP first");
+    auto *app = api::get_value_by_key<Application>(ctx, args.key_name, llm.app_type());
+    if (app == nullptr) {
+        throw Error("Application does not exist");
     }
 
-    auto *app = api::get_value_by_key<Application>(*key);
     auto *model = api::get_value_by_key<LlmModel>(ctx, app->llm().key, llm.llm_type());
     if (model == nullptr) {
-        throw Error("LLM model does not exist");
+        throw Error("LLM model for vector store does not exist");
     }
 
-    nlohmann::json context;
-    if (!args.vars.is_null()) {
-        context["vars"] = args.vars;
+    auto application = std::static_pointer_cast<Application>(app->shared_from_this());
+    auto llm_model = std::static_pointer_cast<LlmModel>(model->shared_from_this());
+    auto *blocked_client = RedisModule_BlockClient(ctx, _reply_func, _timeout_func, _free_func, args.timeout.count());
+    try {
+        llm.worker_pool().enqueue(&RunCommand::_run_impl, this, blocked_client, args, application, llm_model);
+    } catch (const Error &err) {
+        RedisModule_AbortBlock(blocked_client);
+
+        api::reply_with_error(ctx, err);
+    }
+}
+
+void RunCommand::_run_impl(RedisModuleBlockedClient *blocked_client,
+        const Args &args, const ApplicationSPtr &app, const LlmModelSPtr &model) const {
+    assert(blocked_client != nullptr && app && model);
+
+    auto result = std::make_unique<AsyncResult>();
+
+    try {
+        nlohmann::json context;
+        if (!args.vars.is_null()) {
+            context["vars"] = args.vars;
+        }
+
+        result->output = app->run(blocked_client, *model, context, args.input, args.verbose);
+    } catch (const Error &) {
+        result->err = std::current_exception();
     }
 
-    return app->run(ctx, *model, context, args.input, args.verbose);
+    RedisModule_UnblockClient(blocked_client, result.release());
 }
 
 RunCommand::Args RunCommand::_parse_args(RedisModuleString **argv, int argc) const {
@@ -84,6 +100,30 @@ RunCommand::Args RunCommand::_parse_args(RedisModuleString **argv, int argc) con
     }
 
     return args;
+}
+
+int RunCommand::_reply_func(RedisModuleCtx *ctx, RedisModuleString ** /*argv*/, int /*argc*/) {
+    auto *res = static_cast<AsyncResult *>(RedisModule_GetBlockedClientPrivateData(ctx));
+    assert(res != nullptr);
+
+    if (res->err) {
+        try {
+            std::rethrow_exception(res->err);
+        } catch (const Error &e) {
+            api::reply_with_error(ctx, e);
+        }
+    } else {
+        RedisModule_ReplyWithStringBuffer(ctx, res->output.data(), res->output.size());
+    }
+}
+
+int RunCommand::_timeout_func(RedisModuleCtx *ctx, RedisModuleString ** /*argv*/, int /*argc*/) {
+    return RedisModule_ReplyWithNull(ctx);
+}
+
+void RunCommand::_free_func(RedisModuleCtx * /*ctx*/, void *privdata) {
+    auto *result = static_cast<AsyncResult *>(privdata);
+    delete result;
 }
 
 }

@@ -23,7 +23,7 @@ SimpleApplication::SimpleApplication(const LlmInfo &llm,
     Application("app", llm, conf),
     _prompt(conf.value<std::string>("prompt", "")) {}
 
-std::string SimpleApplication::run(RedisModuleCtx *ctx, LlmModel &model, const nlohmann::json &context, const std::string_view &input, bool verbose) {
+std::string SimpleApplication::run(RedisModuleBlockedClient * /*blocked_client*/, LlmModel &model, const nlohmann::json &context, const std::string_view &input, bool verbose) {
     nlohmann::json vars;
     if (!context.is_null()) {
         vars = context.value<nlohmann::json>("vars", nlohmann::json::object());

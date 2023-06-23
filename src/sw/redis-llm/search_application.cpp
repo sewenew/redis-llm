@@ -26,21 +26,39 @@ SearchApplication::SearchApplication(const LlmInfo &llm,
     _vector_store(conf.at("vector_store").get<std::string>()),
     _k(conf.at("k").get<std::size_t>()) {}
 
-std::string SearchApplication::run(RedisModuleCtx *ctx, LlmModel &model, const nlohmann::json &context, const std::string_view &input, bool verbose) {
+std::string SearchApplication::run(RedisModuleBlockedClient *blocked_client, LlmModel &model, const nlohmann::json &context, const std::string_view &input, bool verbose) {
     /*
     if (context.is_null()) {
         throw Error("no context is specified");
     }
     */
 
-    auto &store = _get_vector_store(ctx, context);
-    auto *store_model = api::get_value_by_key<LlmModel>(ctx, store.llm().key, RedisLlm::instance().llm_type());
-    if (store_model == nullptr) {
-        throw Error("LLM model does not exist: " + store.llm().key);
-    }
-    auto embedding = store_model->embedding(input, store.llm().params);
+    VectorStoreSPtr vector_store;
+    LlmModelSPtr llm_model;
 
-    auto similar_items = _get_similar_items(embedding, store);
+    auto *ctx = RedisModule_GetThreadSafeContext(blocked_client);
+    RedisModule_ThreadSafeContextLock(ctx);
+
+    try {
+        auto &store = _get_vector_store(ctx, context);
+        vector_store = std::static_pointer_cast<VectorStore>(store.shared_from_this());
+        auto *store_model = api::get_value_by_key<LlmModel>(ctx, store.llm().key, RedisLlm::instance().llm_type());
+        if (store_model == nullptr) {
+            throw Error("LLM model does not exist: " + store.llm().key);
+        }
+        llm_model = std::static_pointer_cast<LlmModel>(store_model->shared_from_this());
+    } catch (const Error &) {
+        RedisModule_ThreadSafeContextUnlock(ctx);
+        RedisModule_FreeThreadSafeContext(ctx);
+        throw;
+    }
+
+    RedisModule_ThreadSafeContextUnlock(ctx);
+    RedisModule_FreeThreadSafeContext(ctx);
+
+    auto embedding = llm_model->embedding(input, vector_store->llm().params);
+
+    auto similar_items = _get_similar_items(embedding, *vector_store);
 
     nlohmann::json vars;
     if (!context.is_null()) {
@@ -69,21 +87,6 @@ std::string SearchApplication::run(RedisModuleCtx *ctx, LlmModel &model, const n
 }
 
 VectorStore& SearchApplication::_get_vector_store(RedisModuleCtx *ctx, const nlohmann::json &context) {
-    /*
-    auto iter = context.find("vector_store");
-    if (iter == context.end()) {
-        throw Error("no vector store is specified");
-    }
-
-    std::string store_key;
-    try {
-        store_key = iter.value().get<std::string>();
-    } catch (const std::exception &e) {
-        throw Error("vector store key should be string");
-    }
-    */
-
-    //auto *store = api::get_value_by_key<VectorStore>(ctx, store_key, RedisLlm::instance().vector_store_type());
     auto *store = api::get_value_by_key<VectorStore>(ctx, _vector_store, RedisLlm::instance().vector_store_type());
     if (store == nullptr) {
         throw Error("vector store does not exist");

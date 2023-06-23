@@ -17,7 +17,10 @@
 #ifndef SEWENEW_REDIS_LLM_RUN_COMMAND_H
 #define SEWENEW_REDIS_LLM_RUN_COMMAND_H
 
+#include <chrono>
+#include <exception>
 #include "nlohmann/json.hpp"
+#include "sw/redis-llm/application.h"
 #include "sw/redis-llm/command.h"
 #include "sw/redis-llm/module_api.h"
 #include "sw/redis-llm/llm_model.h"
@@ -39,11 +42,26 @@ private:
         std::string_view input;
 
         bool verbose = false;
+
+        std::chrono::milliseconds timeout{0};
+    };
+
+    struct AsyncResult {
+        std::string output;
+
+        std::exception_ptr err;
     };
 
     Args _parse_args(RedisModuleString **argv, int argc) const;
 
-    std::string _run_impl(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const;
+    void _run_impl(RedisModuleBlockedClient *blocked_client,
+            const Args &args, const ApplicationSPtr &app, const LlmModelSPtr &model) const;
+
+    static int _reply_func(RedisModuleCtx *ctx, RedisModuleString **argv, int argc);
+
+    static int _timeout_func(RedisModuleCtx *ctx, RedisModuleString **argv, int argc);
+
+    static void _free_func(RedisModuleCtx *ctx, void *privdata);
 };
 
 }
