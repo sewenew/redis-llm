@@ -42,7 +42,7 @@ public:
 
     virtual ~Application() = default;
 
-    virtual std::string run(RedisModuleCtx *ctx, LlmModel &llm, const nlohmann::json &context, const std::string_view &input, bool verbose) = 0;
+    virtual std::string run(RedisModuleBlockedClient *blocked_client, LlmModel &llm, const nlohmann::json &context, const std::string_view &input, bool verbose) = 0;
 
     const std::string& type() const {
         return _type;

@@ -29,7 +29,7 @@ class SearchApplication : public Application {
 public:
     SearchApplication(const LlmInfo &llm, const nlohmann::json &conf);
 
-    virtual std::string run(RedisModuleCtx *ctx, LlmModel &llm, const nlohmann::json &context, const std::string_view &input, bool verbose) override;
+    virtual std::string run(RedisModuleBlockedClient *blocked_client, LlmModel &llm, const nlohmann::json &context, const std::string_view &input, bool verbose) override;
 
 private:
     VectorStore& _get_vector_store(RedisModuleCtx *ctx, const nlohmann::json &context);
