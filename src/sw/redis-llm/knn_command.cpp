@@ -23,49 +23,55 @@
 namespace sw::redis::llm {
 
 void KnnCommand::_run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const {
-    auto res = _knn(ctx, argv, argc);
-    if (!res || res->empty()) {
-        RedisModule_ReplyWithNull(ctx);
-    } else {
-        RedisModule_ReplyWithArray(ctx, res->size());
-        for (const auto &ele : *res) {
-            RedisModule_ReplyWithArray(ctx, 2);
-            RedisModule_ReplyWithLongLong(ctx, ele.first);
-            RedisModule_ReplyWithDouble(ctx, ele.second);
-        }
+    auto args = _parse_args(argv, argc);
+
+    auto &llm = RedisLlm::instance();
+    auto *store = api::get_value_by_key<VectorStore>(ctx, args.key_name, llm.vector_store_type());
+    if (store == nullptr) {
+        // TODO: create one automatically.
+        throw Error("vector store does not exist");
+    }
+
+    auto *model = api::get_value_by_key<LlmModel>(ctx, store->llm().key, llm.llm_type());
+    if (model == nullptr) {
+        throw Error("LLM model for vector store does not exist");
+    }
+
+    auto vector_store = std::static_pointer_cast<VectorStore>(store->shared_from_this());
+    auto llm_model = std::static_pointer_cast<LlmModel>(model->shared_from_this());
+    auto *blocked_client = RedisModule_BlockClient(ctx, _reply_func, _timeout_func, _free_func, args.timeout.count());
+
+    try {
+        llm.worker_pool().enqueue(&KnnCommand::_knn, this, blocked_client, args, vector_store, llm_model);
+    } catch (const Error &err) {
+        RedisModule_AbortBlock(blocked_client);
+
+        api::reply_with_error(ctx, err);
     }
 }
 
-std::optional<std::vector<std::pair<uint64_t, float>>> KnnCommand::_knn(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const {
-    auto args = _parse_args(argv, argc);
+void KnnCommand::_knn(RedisModuleBlockedClient *blocked_client,
+        const Args &args, const VectorStoreSPtr &store, const LlmModelSPtr &model) const {
+    assert(blocked_client != nullptr && store && model);
 
-    auto key = api::open_key(ctx, args.key_name, api::KeyMode::READONLY);
-    assert(key);
+    auto result = std::make_unique<AsyncResult>();
+    try {
+        if (args.embedding.empty()) {
+            if (args.query.empty()) {
+                throw Error("no query is specified");
+            }
 
-    auto &llm = RedisLlm::instance();
-    if (!api::key_exists(key.get(), llm.vector_store_type())) {
-        return std::nullopt;
+            auto query = model->embedding(args.query, store->llm().params);
+
+            result->neighbors = store->knn(query, args.k);
+        } else {
+            result->neighbors = store->knn(args.embedding, args.k);
+        }
+    } catch (const Error &) {
+        result->err = std::current_exception();
     }
 
-    auto *store = api::get_value_by_key<VectorStore>(*key);
-    assert(store != nullptr);
-
-    if (args.embedding.empty()) {
-        if (args.query.empty()) {
-            throw Error("no query is specified");
-        }
-
-        auto *model = api::get_value_by_key<LlmModel>(ctx, store->llm().key, llm.llm_type());
-        if (model == nullptr) {
-            throw Error("LLM model does not exist: " + store->llm().key);
-        }
-
-        auto query = model->embedding(args.query, store->llm().params);
-
-        return store->knn(query, args.k);
-    } else {
-        return store->knn(args.embedding, args.k);
-    }
+    RedisModule_UnblockClient(blocked_client, result.release());
 }
 
 KnnCommand::Args KnnCommand::_parse_args(RedisModuleString **argv, int argc) const {
@@ -97,6 +103,16 @@ KnnCommand::Args KnnCommand::_parse_args(RedisModuleString **argv, int argc) con
             }
             ++idx;
             args.embedding = util::parse_embedding(util::to_sv(argv[idx]));
+        } else if (util::str_case_equal(opt, "--TIMEOUT")) {
+            if (idx + 1 >= argc) {
+                throw Error("syntax error");
+            }
+            ++idx;
+            try {
+                args.timeout = std::chrono::milliseconds(std::stoul(util::to_string(argv[idx])));
+            } catch (const std::exception &e) {
+                throw Error(std::string("timeout should be a number: ") + e.what());
+            }
         } else {
             break;
         }
@@ -109,6 +125,42 @@ KnnCommand::Args KnnCommand::_parse_args(RedisModuleString **argv, int argc) con
     }
 
     return args;
+}
+
+int KnnCommand::_reply_func(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+    auto *res = static_cast<AsyncResult *>(RedisModule_GetBlockedClientPrivateData(ctx));
+    assert(res != nullptr);
+
+    if (res->err) {
+        try {
+            std::rethrow_exception(res->err);
+        } catch (const Error &e) {
+            api::reply_with_error(ctx, e);
+        }
+    } else {
+        auto &neighbors = res->neighbors;
+        if (neighbors.empty()) {
+            RedisModule_ReplyWithNull(ctx);
+        } else {
+            RedisModule_ReplyWithArray(ctx, neighbors.size());
+            for (const auto &[id, dist] : neighbors) {
+                RedisModule_ReplyWithArray(ctx, 2);
+                RedisModule_ReplyWithLongLong(ctx, id);
+                RedisModule_ReplyWithDouble(ctx, dist);
+            }
+        }
+    }
+
+    return REDISMODULE_OK;
+}
+
+int KnnCommand::_timeout_func(RedisModuleCtx *ctx, RedisModuleString ** /*argv*/, int /*argc*/) {
+    return RedisModule_ReplyWithNull(ctx);
+}
+
+void KnnCommand::_free_func(RedisModuleCtx * /*ctx*/, void *privdata) {
+    auto *result = static_cast<AsyncResult *>(privdata);
+    delete result;
 }
 
 }

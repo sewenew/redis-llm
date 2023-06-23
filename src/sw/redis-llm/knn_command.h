@@ -17,8 +17,12 @@
 #ifndef SEWENEW_REDIS_LLM_KNN_COMMAND_H
 #define SEWENEW_REDIS_LLM_KNN_COMMAND_H
 
-#include "sw/redis-llm/module_api.h"
+#include <chrono>
+#include <exception>
 #include "sw/redis-llm/command.h"
+#include "sw/redis-llm/llm_model.h"
+#include "sw/redis-llm/module_api.h"
+#include "sw/redis-llm/vector_store.h"
 #include "sw/redis-llm/utils.h"
 
 namespace sw::redis::llm {
@@ -36,12 +40,26 @@ private:
 
         std::size_t k = 10;
 
+        std::chrono::milliseconds timeout{0};
+
         Vector embedding;
+    };
+
+    struct AsyncResult {
+        std::vector<std::pair<uint64_t, float>> neighbors;
+        std::exception_ptr err;
     };
 
     Args _parse_args(RedisModuleString **argv, int argc) const;
 
-    std::optional<std::vector<std::pair<uint64_t, float>>> _knn(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const;
+    void _knn(RedisModuleBlockedClient *blocked_client,
+        const Args &args, const VectorStoreSPtr &store, const LlmModelSPtr &model) const;
+
+    static int _reply_func(RedisModuleCtx *ctx, RedisModuleString **argv, int argc);
+
+    static int _timeout_func(RedisModuleCtx *ctx, RedisModuleString **argv, int argc);
+
+    static void _free_func(RedisModuleCtx *ctx, void *privdata);
 };
 
 }

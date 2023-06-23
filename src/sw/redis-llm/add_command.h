@@ -17,6 +17,7 @@
 #ifndef SEWENEW_REDIS_LLM_ADD_COMMAND_H
 #define SEWENEW_REDIS_LLM_ADD_COMMAND_H
 
+#include <chrono>
 #include <exception>
 #include "sw/redis-llm/command.h"
 #include "sw/redis-llm/llm_model.h"
