@@ -15,7 +15,6 @@
  *************************************************************************/
 
 #include "sw/redis-llm/add_command.h"
-#include "sw/redis-llm/llm_model.h"
 #include "sw/redis-llm/module_api.h"
 #include "sw/redis-llm/redis_llm.h"
 #include "sw/redis-llm/utils.h"
@@ -23,76 +22,90 @@
 namespace sw::redis::llm {
 
 void AddCommand::_run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const {
-    auto id = _add(ctx, argv, argc);
-
-    RedisModule_ReplyWithLongLong(ctx, id);
-
-    RedisModule_ReplicateVerbatim(ctx);
-}
-
-uint64_t AddCommand::_add(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const {
     auto args = _parse_args(argv, argc);
 
-    auto key = api::open_key(ctx, args.key_name, api::KeyMode::WRITEONLY);
-    assert(key);
+    if (args.embedding.empty()) {
+        _blocking_add(ctx, args);
+    } else {
+        // No need to do embedding, so no need to block the client.
+        auto id = _add(ctx, args);
 
+        RedisModule_ReplyWithLongLong(ctx, id);
+
+        RedisModule_ReplicateVerbatim(ctx);
+    }
+}
+
+void AddCommand::_blocking_add(RedisModuleCtx *ctx, const Args &args) const {
     auto &llm = RedisLlm::instance();
-    if (!api::key_exists(key.get(), llm.vector_store_type())) {
-        throw Error("key does not exist, call LLM.CREATE first");
+    auto *store = api::get_value_by_key<VectorStore>(ctx, args.key_name, llm.vector_store_type());
+    if (store == nullptr) {
+        // TODO: create one automatically.
+        throw Error("vector store does not exist");
     }
 
-    auto *store = api::get_value_by_key<VectorStore>(*key);
-    assert(store != nullptr);
+    auto *model = api::get_value_by_key<LlmModel>(ctx, store->llm().key, llm.llm_type());
+    if (model == nullptr) {
+        throw Error("LLM model for vector store does not exist");
+    }
+
+    auto vector_store = std::static_pointer_cast<VectorStore>(store->shared_from_this());
+    auto llm_model = std::static_pointer_cast<LlmModel>(model->shared_from_this());
+    auto *blocked_client = RedisModule_BlockClient(ctx, _reply_func, _timeout_func, _free_func, args.timeout.count());
+
+    try {
+        llm.worker_pool().enqueue(&AddCommand::_async_add, this, blocked_client, args, vector_store, llm_model);
+    } catch (const Error &err) {
+        RedisModule_AbortBlock(blocked_client);
+
+        api::reply_with_error(ctx, err);
+    }
+}
+
+void AddCommand::_async_add(RedisModuleBlockedClient *blocked_client,
+        const Args &args, const VectorStoreSPtr &store, const LlmModelSPtr &model) const {
+    assert(args.embedding.empty() && store && model);
+
+    auto result = std::make_unique<AsyncResult>();
+    try {
+        auto embedding = model->embedding(args.data, store->llm().params);
+
+        if (args.id) {
+            store->add(*args.id, args.data, embedding);
+            result->id = *args.id;
+        } else {
+            result->id = store->add(args.data, embedding);
+        }
+    } catch (const Error &) {
+        result->err = std::current_exception();
+    }
+
+    RedisModule_UnblockClient(blocked_client, result.release());
+}
+
+uint64_t AddCommand::_add(RedisModuleCtx *ctx, const Args &args) const {
+    auto *store = api::get_value_by_key<VectorStore>(ctx, args.key_name, RedisLlm::instance().vector_store_type());
+    if (store == nullptr) {
+        throw Error("vector store does not exist");
+    }
+
+    assert(!args.embedding.empty());
 
     if (args.id) {
-        if (!args.embedding.empty()) {
-            if (store->dim() != args.embedding.size()) {
-                throw Error("embedding dimension not match");
-            }
-
-            store->add(*(args.id), args.data, args.embedding);
-        } else {
-            auto embedding = _get_embedding(ctx, args.data, store->llm().key);
-            store->add(*args.id, args.data, embedding);
+        if (store->dim() != args.embedding.size()) {
+            throw Error("embedding dimension not match");
         }
+
+        store->add(*(args.id), args.data, args.embedding);
 
         return *(args.id);
     } else {
-        if (!args.embedding.empty()) {
-            if (store->dim() != args.embedding.size()) {
-                throw Error("embedding dimension not match");
-            }
-
-            return store->add(args.data, args.embedding);
-        } else {
-            auto embedding = _get_embedding(ctx, args.data, store->llm().key);
-            return store->add(args.data, embedding);
-        }
-    }
-}
-
-Vector AddCommand::_get_embedding(RedisModuleCtx *ctx, const std::string_view &data, const std::string &llm_key) const {
-    LlmModel *model = nullptr;
-    auto *key_str = RedisModule_CreateString(ctx, llm_key.data(), llm_key.size());
-    try {
-        auto key = api::open_key(ctx, key_str, api::KeyMode::READONLY);
-        assert(key);
-
-        RedisModule_FreeString(ctx, key_str);
-
-        auto &llm = RedisLlm::instance();
-        if (!api::key_exists(key.get(), llm.llm_type())) {
-            throw Error("LLM model does not exist, call LLM.CREATE first");
+        if (store->dim() != args.embedding.size()) {
+            throw Error("embedding dimension not match");
         }
 
-        model = api::get_value_by_key<LlmModel>(*key);
-        assert(model != nullptr);
-    } catch (const Error &) {
-        RedisModule_FreeString(ctx, key_str);
-        throw;
+        return store->add(args.data, args.embedding);
     }
-
-    return model->embedding(data, {});
 }
 
 AddCommand::Args AddCommand::_parse_args(RedisModuleString **argv, int argc) const {
@@ -124,6 +137,16 @@ AddCommand::Args AddCommand::_parse_args(RedisModuleString **argv, int argc) con
             }
             ++idx;
             args.embedding = util::parse_embedding(util::to_sv(argv[idx]));
+        } else if (util::str_case_equal(opt, "--TIMEOUT")) {
+            if (idx + 1 >= argc) {
+                throw Error("syntax error");
+            }
+            ++idx;
+            try {
+                args.timeout = std::chrono::milliseconds(std::stoul(util::to_string(argv[idx])));
+            } catch (const std::exception &e) {
+                throw Error(std::string("timeout should be a number: ") + e.what());
+            }
         } else {
             break;
         }
@@ -134,6 +157,34 @@ AddCommand::Args AddCommand::_parse_args(RedisModuleString **argv, int argc) con
     args.data = util::to_sv(argv[idx]);
 
     return args;
+}
+
+int AddCommand::_reply_func(RedisModuleCtx *ctx, RedisModuleString ** /*argv*/, int /*argc*/) {
+    auto *res = static_cast<AsyncResult *>(RedisModule_GetBlockedClientPrivateData(ctx));
+    assert(res != nullptr);
+
+    if (res->err) {
+        try {
+            std::rethrow_exception(res->err);
+        } catch (const Error &e) {
+            api::reply_with_error(ctx, e);
+        }
+    } else {
+        RedisModule_ReplyWithLongLong(ctx, res->id);
+
+        RedisModule_ReplicateVerbatim(ctx);
+    }
+
+    return REDISMODULE_OK;
+}
+
+int AddCommand::_timeout_func(RedisModuleCtx *ctx, RedisModuleString ** /*argv*/, int /*argc*/) {
+    return RedisModule_ReplyWithNull(ctx);
+}
+
+void AddCommand::_free_func(RedisModuleCtx * /*ctx*/, void *privdata) {
+    auto *result = static_cast<AsyncResult *>(privdata);
+    delete result;
 }
 
 }
