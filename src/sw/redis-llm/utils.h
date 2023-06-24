@@ -100,20 +100,6 @@ Vector parse_embedding(const std::string_view &opt);
 
 }
 
-namespace io {
-
-bool is_regular(const std::string &file);
-
-bool is_directory(const std::string &file);
-
-std::vector<std::string> list_dir(const std::string &path);
-
-std::string extension(const std::string &file);
-
-void remove_file(const std::string &path);
-
-}
-
 }
 
 #endif // end SEWENEW_REDIS_LLM_UTILS_H

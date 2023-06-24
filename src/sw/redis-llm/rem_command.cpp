@@ -33,15 +33,12 @@ void RemCommand::_run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) c
 int RemCommand::_rem(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const {
     auto args = _parse_args(argv, argc);
 
-    auto key = api::open_key(ctx, args.key_name, api::KeyMode::WRITEONLY);
-    assert(key);
-
-    auto &llm = RedisLlm::instance();
-    if (!api::key_exists(key.get(), llm.vector_store_type())) {
+    auto *store = api::get_value_by_key<VectorStore>(ctx, args.key_name,
+            RedisLlm::instance().vector_store_type(), api::KeyMode::WRITEONLY);
+    if (store == nullptr) {
         return 0;
     }
 
-    auto *store = api::get_value_by_key<VectorStore>(*key);
     if (store->rem(args.id)) {
         return 1;
     } else {

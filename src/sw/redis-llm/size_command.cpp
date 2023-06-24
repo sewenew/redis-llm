@@ -25,11 +25,7 @@ namespace sw::redis::llm {
 void SizeCommand::_run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const {
     auto size = _size(ctx, argv, argc);
 
-    if (size) {
-        RedisModule_ReplyWithLongLong(ctx, *size);
-    } else {
-        RedisModule_ReplyWithNull(ctx);
-    }
+    RedisModule_ReplyWithLongLong(ctx, size);
 }
 
 SizeCommand::Args SizeCommand::_parse_args(RedisModuleString **argv, int argc) const {
@@ -45,19 +41,14 @@ SizeCommand::Args SizeCommand::_parse_args(RedisModuleString **argv, int argc) c
     return args;
 }
 
-std::optional<uint64_t> SizeCommand::_size(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const {
+uint64_t SizeCommand::_size(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const {
     auto args = _parse_args(argv, argc);
 
-    auto key = api::open_key(ctx, args.key_name, api::KeyMode::READONLY);
-    assert(key);
-
-    auto &llm = RedisLlm::instance();
-    if (!api::key_exists(key.get(), llm.vector_store_type())) {
-        return std::nullopt;
+    auto *store = api::get_value_by_key<VectorStore>(ctx, args.key_name,
+            RedisLlm::instance().vector_store_type());
+    if (store == nullptr) {
+        return 0;
     }
-
-    auto *store = api::get_value_by_key<VectorStore>(*key);
-    assert(store != nullptr);
 
     return store->data_store().size();
 }

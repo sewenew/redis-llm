@@ -15,18 +15,9 @@
  *************************************************************************/
 
 #include "sw/redis-llm/utils.h"
-#include <sys/stat.h>
-#include <cstdio>
-#include <dirent.h>
 #include <cassert>
 #include <cctype>
 #include "sw/redis-llm/errors.h"
-
-namespace {
-
-mode_t file_type(const std::string &file);
-
-}
 
 namespace sw::redis::llm {
 
@@ -153,78 +144,6 @@ Vector parse_embedding(const std::string_view &opt) {
     return embedding;
 }
 
-}
-
-namespace io {
-
-bool is_regular(const std::string &file) {
-    return S_ISREG(file_type(file));
-}
-
-bool is_directory(const std::string &file) {
-    return S_ISDIR(file_type(file));
-}
-
-std::vector<std::string> list_dir(const std::string &path) {
-    if (!is_directory(path)) {
-        throw Error(path + " is not a directory");
-    }
-
-    auto *dir = opendir(path.c_str());
-    if (dir == nullptr) {
-        throw Error("failed to open directory: " + path);
-    }
-
-    std::vector<std::string> files;
-    dirent *entry = nullptr;
-    while ((entry = readdir(dir)) != nullptr) {
-        std::string name = entry->d_name;
-
-        // Skip "." and ".."
-        if (name == "." || name == "..") {
-            continue;
-        }
-
-        auto file_path = path + "/" + name;
-        if (is_directory(file_path)) {
-            auto sub_files = list_dir(file_path);
-            files.insert(files.end(), sub_files.begin(), sub_files.end());
-        } else {
-            files.push_back(file_path);
-        }
-    }
-
-    closedir(dir);
-
-    return files;
-}
-
-std::string extension(const std::string &file) {
-    auto pos = file.rfind(".");
-    if (pos == std::string::npos) {
-        return {};
-    }
-
-    return file.substr(pos + 1);
-}
-
-void remove_file(const std::string &path) {
-    std::remove(path.data());
-}
-
-}
-
-}
-
-namespace {
-
-mode_t file_type(const std::string &file) {
-    struct stat buf;
-    if (stat(file.c_str(), &buf) < 0) {
-        throw sw::redis::llm::Error("failed to get file status: " + file);
-    }
-
-    return buf.st_mode;
 }
 
 }

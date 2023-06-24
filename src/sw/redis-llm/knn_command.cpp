@@ -32,13 +32,22 @@ void KnnCommand::_run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) c
         throw Error("vector store does not exist");
     }
 
-    auto *model = api::get_value_by_key<LlmModel>(ctx, store->llm().key, llm.llm_type());
-    if (model == nullptr) {
-        throw Error("LLM model for vector store does not exist");
+    auto vector_store = std::static_pointer_cast<VectorStore>(store->shared_from_this());
+
+    LlmModelSPtr llm_model;
+    if (!args.embedding.empty()) {
+        if (args.query.empty()) {
+            throw Error("no query is specified");
+        }
+
+        auto *model = api::get_value_by_key<LlmModel>(ctx, store->llm().key, llm.llm_type());
+        if (model == nullptr) {
+            throw Error("LLM model for vector store does not exist");
+        }
+
+        llm_model = std::static_pointer_cast<LlmModel>(model->shared_from_this());
     }
 
-    auto vector_store = std::static_pointer_cast<VectorStore>(store->shared_from_this());
-    auto llm_model = std::static_pointer_cast<LlmModel>(model->shared_from_this());
     auto *blocked_client = RedisModule_BlockClient(ctx, _reply_func, _timeout_func, _free_func, args.timeout.count());
 
     try {
@@ -52,14 +61,12 @@ void KnnCommand::_run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) c
 
 void KnnCommand::_knn(RedisModuleBlockedClient *blocked_client,
         const Args &args, const VectorStoreSPtr &store, const LlmModelSPtr &model) const {
-    assert(blocked_client != nullptr && store && model);
+    assert(blocked_client != nullptr && store);
 
     auto result = std::make_unique<AsyncResult>();
     try {
         if (args.embedding.empty()) {
-            if (args.query.empty()) {
-                throw Error("no query is specified");
-            }
+            assert(model && !args.query.empty());
 
             auto query = model->embedding(args.query, store->llm().params);
 
@@ -139,15 +146,11 @@ int KnnCommand::_reply_func(RedisModuleCtx *ctx, RedisModuleString **argv, int a
         }
     } else {
         auto &neighbors = res->neighbors;
-        if (neighbors.empty()) {
-            RedisModule_ReplyWithNull(ctx);
-        } else {
-            RedisModule_ReplyWithArray(ctx, neighbors.size());
-            for (const auto &[id, dist] : neighbors) {
-                RedisModule_ReplyWithArray(ctx, 2);
-                RedisModule_ReplyWithLongLong(ctx, id);
-                RedisModule_ReplyWithDouble(ctx, dist);
-            }
+        RedisModule_ReplyWithArray(ctx, neighbors.size());
+        for (const auto &[id, dist] : neighbors) {
+            RedisModule_ReplyWithArray(ctx, 2);
+            RedisModule_ReplyWithLongLong(ctx, id);
+            RedisModule_ReplyWithDouble(ctx, dist);
         }
     }
 

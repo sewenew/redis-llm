@@ -35,7 +35,7 @@ private:
 
     Args _parse_args(RedisModuleString **argv, int argc) const;
 
-    std::optional<uint64_t> _size(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const;
+    uint64_t _size(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const;
 };
 
 }

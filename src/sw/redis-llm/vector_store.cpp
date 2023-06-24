@@ -53,7 +53,8 @@ VectorStoreFactory::VectorStoreFactory() {
     _register("hnsw", std::make_unique<VectorStoreCreatorTpl<Hnsw>>());
 }
 
-VectorStoreSPtr VectorStoreFactory::create(const std::string &type, const nlohmann::json &conf, const LlmInfo &llm) const {
+VectorStoreSPtr VectorStoreFactory::create(const std::string &type,
+        const nlohmann::json &conf, const LlmInfo &llm) const {
     auto iter = _creators.find(type);
     if (iter == _creators.end()) {
         throw Error(std::string("unknown vector store: ") + type);
