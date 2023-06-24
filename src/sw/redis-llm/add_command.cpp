@@ -25,6 +25,7 @@ void AddCommand::_run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) c
     auto args = _parse_args(argv, argc);
 
     if (args.embedding.empty()) {
+        // TODO: In this case, we should disable AOF.
         _blocking_add(ctx, args);
     } else {
         // No need to do embedding, so no need to block the client.
@@ -38,7 +39,8 @@ void AddCommand::_run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) c
 
 void AddCommand::_blocking_add(RedisModuleCtx *ctx, const Args &args) const {
     auto &llm = RedisLlm::instance();
-    auto *store = api::get_value_by_key<VectorStore>(ctx, args.key_name, llm.vector_store_type());
+    auto *store = api::get_value_by_key<VectorStore>(ctx, args.key_name,
+            llm.vector_store_type(), api::KeyMode::READWRITE);
     if (store == nullptr) {
         // TODO: create one automatically.
         throw Error("vector store does not exist");
@@ -51,7 +53,8 @@ void AddCommand::_blocking_add(RedisModuleCtx *ctx, const Args &args) const {
 
     auto vector_store = std::static_pointer_cast<VectorStore>(store->shared_from_this());
     auto llm_model = std::static_pointer_cast<LlmModel>(model->shared_from_this());
-    auto *blocked_client = RedisModule_BlockClient(ctx, _reply_func, _timeout_func, _free_func, args.timeout.count());
+    auto *blocked_client = RedisModule_BlockClient(ctx, _reply_func, _timeout_func,
+            _free_func, args.timeout.count());
 
     try {
         llm.worker_pool().enqueue(&AddCommand::_async_add, this, blocked_client, args, vector_store, llm_model);
@@ -64,7 +67,7 @@ void AddCommand::_blocking_add(RedisModuleCtx *ctx, const Args &args) const {
 
 void AddCommand::_async_add(RedisModuleBlockedClient *blocked_client,
         const Args &args, const VectorStoreSPtr &store, const LlmModelSPtr &model) const {
-    assert(args.embedding.empty() && store && model);
+    assert(blocked_client != nullptr && args.embedding.empty() && store && model);
 
     auto result = std::make_unique<AsyncResult>();
     try {
@@ -84,7 +87,8 @@ void AddCommand::_async_add(RedisModuleBlockedClient *blocked_client,
 }
 
 uint64_t AddCommand::_add(RedisModuleCtx *ctx, const Args &args) const {
-    auto *store = api::get_value_by_key<VectorStore>(ctx, args.key_name, RedisLlm::instance().vector_store_type());
+    auto *store = api::get_value_by_key<VectorStore>(ctx, args.key_name,
+            RedisLlm::instance().vector_store_type(), api::KeyMode::READWRITE);
     if (store == nullptr) {
         throw Error("vector store does not exist");
     }
@@ -92,18 +96,10 @@ uint64_t AddCommand::_add(RedisModuleCtx *ctx, const Args &args) const {
     assert(!args.embedding.empty());
 
     if (args.id) {
-        if (store->dim() != args.embedding.size()) {
-            throw Error("embedding dimension not match");
-        }
-
         store->add(*(args.id), args.data, args.embedding);
 
         return *(args.id);
     } else {
-        if (store->dim() != args.embedding.size()) {
-            throw Error("embedding dimension not match");
-        }
-
         return store->add(args.data, args.embedding);
     }
 }

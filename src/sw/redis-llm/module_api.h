@@ -90,10 +90,11 @@ T* get_value_by_key(RedisModuleKey &key) {
 }
 
 template <typename T>
-T* get_value_by_key(RedisModuleCtx *ctx, RedisModuleString *key_name, RedisModuleType *type) {
+T* get_value_by_key(RedisModuleCtx *ctx, RedisModuleString *key_name,
+        RedisModuleType *type, KeyMode mode = KeyMode::READONLY) {
     assert(ctx != nullptr && key_name != nullptr && type != nullptr);
 
-    auto key = open_key(ctx, key_name, api::KeyMode::READONLY);
+    auto key = open_key(ctx, key_name, mode);
     assert(key);
 
     if (!key_exists(key.get(), type)) {
@@ -107,13 +108,14 @@ T* get_value_by_key(RedisModuleCtx *ctx, RedisModuleString *key_name, RedisModul
 }
 
 template <typename T>
-T* get_value_by_key(RedisModuleCtx *ctx, const std::string &key_name, RedisModuleType *type) {
+T* get_value_by_key(RedisModuleCtx *ctx, const std::string &key_name,
+        RedisModuleType *type, KeyMode mode = KeyMode::READONLY) {
     assert(ctx != nullptr && type != nullptr);
 
     auto *key_str = RedisModule_CreateString(ctx, key_name.data(), key_name.size());
     T *value = nullptr;
     try {
-        value = get_value_by_key<T>(ctx, key_str, type);
+        value = get_value_by_key<T>(ctx, key_str, type, mode);
     } catch (...) {
         RedisModule_FreeString(ctx, key_str);
         throw;

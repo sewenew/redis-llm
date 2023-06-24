@@ -62,8 +62,6 @@ private:
             const Args &args, const VectorStoreSPtr &store,
             const LlmModelSPtr &model) const;
 
-    VectorStore* _get_vector_store(RedisModuleCtx *ctx, RedisModuleString *key_name) const;
-
     static int _reply_func(RedisModuleCtx *ctx, RedisModuleString **argv, int argc);
 
     static int _timeout_func(RedisModuleCtx *ctx, RedisModuleString **argv, int argc);

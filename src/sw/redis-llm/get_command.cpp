@@ -39,15 +39,12 @@ auto GetCommand::_get(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) c
     std::optional<std::pair<std::string, std::string>> {
     auto args = _parse_args(argv, argc);
 
-    auto key = api::open_key(ctx, args.key_name, api::KeyMode::READONLY);
-    assert(key);
-
-    auto &llm = RedisLlm::instance();
-    if (!api::key_exists(key.get(), llm.vector_store_type())) {
+    auto *store = api::get_value_by_key<VectorStore>(ctx, args.key_name,
+            RedisLlm::instance().vector_store_type());
+    if (store == nullptr) {
         return std::nullopt;
     }
 
-    auto *store = api::get_value_by_key<VectorStore>(*key);
     auto data = store->data(args.id);
     if (!data) {
         return std::nullopt;
