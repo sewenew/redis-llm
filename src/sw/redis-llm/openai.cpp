@@ -45,6 +45,28 @@ std::string OpenAi::predict(const std::string_view &input, const nlohmann::json 
     return "";
 }
 
+std::string OpenAi::chat(const std::string_view &input, const nlohmann::json &params) {
+    /*
+    try {
+        if (_opts.chat.is_null()) {
+            throw Error("no chat conf is specified");
+        }
+
+        // Set model and other parameters.
+        auto req = _opts.chat;
+        req["messages"] = _construct_msg(input);
+
+        auto ans = _query(_opts.chat_uri, req);
+
+        return ans["choices"][0]["message"]["content"].get<std::string>();
+    } catch (const std::exception &e) {
+        throw Error(std::string("failed to predict: ") + e.what());
+    }
+    */
+
+    return "";
+}
+
 Vector OpenAi::embedding(const std::string_view &input, const nlohmann::json &params) {
     try {
         if (_opts.embedding.is_null()) {
