@@ -37,6 +37,8 @@ public:
 
     virtual std::string predict(const std::string_view &input, const nlohmann::json &params) = 0;
 
+    virtual std::string chat(const std::string_view &input, const nlohmann::json &params) = 0;
+
     const std::string& type() const {
         return _type;
     }

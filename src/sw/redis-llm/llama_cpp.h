@@ -32,6 +32,9 @@ public:
     virtual std::string predict(const std::string_view &input,
             const nlohmann::json &params = nlohmann::json::object()) override;
 
+    virtual std::string chat(const std::string_view &input,
+            const nlohmann::json &params = nlohmann::json::object()) override;
+
 private:
     struct Options {
         std::string sub_type;

@@ -115,6 +115,8 @@ int RunCommand::_reply_func(RedisModuleCtx *ctx, RedisModuleString ** /*argv*/, 
     } else {
         RedisModule_ReplyWithStringBuffer(ctx, res->output.data(), res->output.size());
     }
+
+    return REDISMODULE_OK;
 }
 
 int RunCommand::_timeout_func(RedisModuleCtx *ctx, RedisModuleString ** /*argv*/, int /*argc*/) {
