@@ -76,9 +76,14 @@ void AddCommand::_async_add(RedisModuleBlockedClient *blocked_client,
         if (args.id) {
             store->add(*args.id, args.data, embedding);
             result->id = *args.id;
+            result->auto_gen_id = false;
         } else {
             result->id = store->add(args.data, embedding);
         }
+
+        result->key = args.key_name;
+        result->embedding = util::dump_embedding(embedding);
+        result->data = args.data;
     } catch (const Error &) {
         result->err = std::current_exception();
     }
@@ -168,7 +173,19 @@ int AddCommand::_reply_func(RedisModuleCtx *ctx, RedisModuleString ** /*argv*/, 
     } else {
         RedisModule_ReplyWithLongLong(ctx, res->id);
 
-        RedisModule_ReplicateVerbatim(ctx);
+        if (res->auto_gen_id) {
+            RedisModule_Replicate(ctx, "LLM.ADD", "scbb",
+                    res->key,
+                    "--EMBEDDING", res->embedding.data(), res->embedding.size(),
+                    res->data.data(), res->data.size());
+        } else {
+            auto id_str = std::to_string(res->id);
+            RedisModule_Replicate(ctx, "LLM.ADD", "scbcbb",
+                    res->key,
+                    "--ID", id_str.data(), id_str.size(),
+                    "--EMBEDDING", res->embedding.data(), res->embedding.size(),
+                    res->data.data(), res->data.size());
+        }
     }
 
     return REDISMODULE_OK;

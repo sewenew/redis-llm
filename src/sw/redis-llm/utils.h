@@ -98,6 +98,8 @@ void split(const std::string_view &str, const std::string &delimiter, Iter resul
 
 Vector parse_embedding(const std::string_view &opt);
 
+std::string dump_embedding(const Vector &embedding);
+
 }
 
 }

@@ -46,7 +46,12 @@ private:
     };
 
     struct AsyncResult {
+        RedisModuleString *key = nullptr;
         uint64_t id = 0;
+        bool auto_gen_id = true;
+        std::string embedding;
+        std::string_view data;
+
         std::exception_ptr err;
     };
 

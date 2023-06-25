@@ -503,6 +503,7 @@ void rdb_save_vector_store(RedisModuleIO *rdb, VectorStore &store) {
     rdb_save_string(rdb, store.type());
     rdb_save_config(rdb, store.conf());
     rdb_save_string(rdb, store.llm().to_string());
+    rdb_save_number(rdb, store.id_idx());
 
     const auto &data_store = store.data_store();
     rdb_save_number(rdb, data_store.size());
@@ -563,8 +564,10 @@ void* rdb_load_vector_store(RedisModuleIO *rdb) {
     auto conf = rdb_load_config(rdb);
     auto info_str = rdb_load_string(rdb);
     LlmInfo llm_info(to_sv(info_str));
+    auto id_idx = rdb_load_number(rdb);
 
     auto store = llm.create_vector_store(type, conf, llm_info);
+    store->set_id_idx(id_idx);
 
     rdb_load_vector_store(rdb, *store);
 

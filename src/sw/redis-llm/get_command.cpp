@@ -55,15 +55,9 @@ auto GetCommand::_get(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) c
         return std::nullopt;
     }
 
-    std::string embedding_str;
-    for (auto ele : *embedding) {
-        if (!embedding_str.empty()) {
-            embedding_str += ",";
-        }
-        embedding_str += std::to_string(ele);
-    }
+    auto embedding_str = util::dump_embedding(*embedding);
 
-    return std::make_pair(*data, embedding_str);
+    return std::make_pair(std::move(*data), std::move(embedding_str));
 }
 
 GetCommand::Args GetCommand::_parse_args(RedisModuleString **argv, int argc) const {

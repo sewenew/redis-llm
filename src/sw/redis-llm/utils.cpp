@@ -144,6 +144,18 @@ Vector parse_embedding(const std::string_view &opt) {
     return embedding;
 }
 
+std::string dump_embedding(const Vector &embedding) {
+    std::string embedding_str;
+    for (auto ele : embedding) {
+        if (!embedding_str.empty()) {
+            embedding_str += ",";
+        }
+        embedding_str += std::to_string(ele);
+    }
+
+    return embedding_str;
+}
+
 }
 
 }
