@@ -37,7 +37,9 @@ target_include_directories(${SHARED_LIB} PUBLIC
 
 target_link_libraries(${SHARED_LIB} PUBLIC ${OPENSSL_LIBRARIES})
 
-target_link_libraries(${SHARED_LIB} PUBLIC "-framework AppKit -framework Security")
+if(APPLE)
+    target_link_libraries(${SHARED_LIB} PUBLIC "-framework AppKit -framework Security")
+endif()
 
 set_target_properties(${SHARED_LIB} PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
 
