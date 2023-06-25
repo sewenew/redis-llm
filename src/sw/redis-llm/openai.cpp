@@ -100,7 +100,7 @@ nlohmann::json OpenAi::_construct_msg(const std::string_view &input) const {
 }
 
 nlohmann::json OpenAi::_query(const std::string &path, const nlohmann::json &req) {
-    auto res = _cli->Post(std::string(path), req.dump(), "application/json");
+    auto res = _cli->Post(path, req.dump(), "application/json");
     if (!res) {
         throw Error("failed to request openai: " + httplib::to_string(res.error()));
     }

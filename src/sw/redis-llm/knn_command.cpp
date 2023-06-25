@@ -35,7 +35,7 @@ void KnnCommand::_run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) c
     auto vector_store = std::static_pointer_cast<VectorStore>(store->shared_from_this());
 
     LlmModelSPtr llm_model;
-    if (!args.embedding.empty()) {
+    if (args.embedding.empty()) {
         if (args.query.empty()) {
             throw Error("no query is specified");
         }
