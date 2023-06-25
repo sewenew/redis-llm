@@ -31,6 +31,7 @@ extern "C" {
 
 #endif
 
+#include <cassert>
 #include <memory>
 #include "sw/redis-llm/errors.h"
 
