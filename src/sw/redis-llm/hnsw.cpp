@@ -21,7 +21,7 @@ namespace sw::redis::llm {
 
 Hnsw::Hnsw(const nlohmann::json &conf, const LlmInfo &llm) :
     VectorStore("hnsw", conf, llm), _opts(_parse_options(conf)) {
-    _space = std::make_unique<hnswlib::L2Space>(_opts.dim);
+    _space = std::make_unique<hnswlib::L2Space>(dim());
     _hnsw = std::make_unique<hnswlib::HierarchicalNSW<float>>(_space.get(), _opts.max_elements, _opts.m, _opts.ef_construction);
 }
 
@@ -77,10 +77,6 @@ std::vector<std::pair<uint64_t, float>> Hnsw::knn(const Vector &query, std::size
 }
 
 void Hnsw::_add(uint64_t id, const std::string_view &data, const Vector &embedding) {
-    if (embedding.size() != _opts.dim) {
-        throw Error("vector dimension does not match");
-    }
-
     try {
         _hnsw->addPoint(embedding.data(), id);
     } catch (const std::exception &e) {
@@ -93,7 +89,6 @@ void Hnsw::_add(uint64_t id, const std::string_view &data, const Vector &embeddi
 Hnsw::Options Hnsw::_parse_options(const nlohmann::json &conf) const {
     Options opts;
     try {
-        opts.dim = conf.at("dim").get<std::size_t>();
         opts.max_elements = conf.value<std::size_t>("max_elements", 10000);
         opts.m = conf.value<std::size_t>("m", 16);
         opts.ef_construction = conf.value<std::size_t>("ef_construction", 200);

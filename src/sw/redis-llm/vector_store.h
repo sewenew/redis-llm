@@ -31,7 +31,7 @@ namespace sw::redis::llm {
 class VectorStore : public Object {
 public:
     VectorStore(const std::string &type, const nlohmann::json &conf, const LlmInfo &llm) :
-        _type(type), _conf(conf), _llm(llm) {}
+        _type(type), _conf(conf), _dim(_dimension()), _llm(llm) {}
 
     virtual ~VectorStore() = default;
 
@@ -60,7 +60,9 @@ public:
         return _llm;
     }
 
-    std::size_t dim() const;
+    std::size_t dim() const {
+        return _dim;
+    }
 
     const std::unordered_map<uint64_t, std::string>& data_store() const {
         return _data_store;
@@ -68,6 +70,10 @@ public:
 
     uint64_t id_idx() const {
         return _id_idx;
+    }
+
+    void set_id_idx(uint64_t idx) {
+        _id_idx = idx;
     }
 
 protected:
@@ -78,9 +84,13 @@ private:
 
     uint64_t _auto_gen_id();
 
+    std::size_t _dimension() const;
+
     std::string _type;
 
     nlohmann::json _conf;
+
+    std::size_t _dim;
 
     LlmInfo _llm;
 

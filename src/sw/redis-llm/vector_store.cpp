@@ -21,6 +21,19 @@
 namespace sw::redis::llm {
 
 uint64_t VectorStore::add(uint64_t id, const std::string_view &data, const Vector &embedding) {
+    if (embedding.empty()) {
+        throw Error("invalid embedding: size is 0");
+    }
+
+    if (_dim == 0) {
+        // Use the first item's dimension as the dimension of the vector store.
+        _dim = embedding.size();
+    }
+
+    if (_dim != embedding.size()) {
+        throw Error("vector dimension does not match");
+    }
+
     _add(id, data, embedding);
 
     return id;
@@ -31,7 +44,11 @@ uint64_t VectorStore::add(const std::string_view &data, const Vector &embedding)
     return add(id, data, embedding);
 }
 
-std::size_t VectorStore::dim() const {
+uint64_t VectorStore::_auto_gen_id() {
+    return ++_id_idx;
+}
+
+std::size_t VectorStore::_dimension() const {
     auto iter = _conf.find("dim");
     if (iter == _conf.end()) {
         return 0;
@@ -43,10 +60,6 @@ std::size_t VectorStore::dim() const {
     }
 
     return dim.get<std::size_t>();
-}
-
-uint64_t VectorStore::_auto_gen_id() {
-    return ++_id_idx;
 }
 
 VectorStoreFactory::VectorStoreFactory() {

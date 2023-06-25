@@ -39,7 +39,6 @@ private:
     virtual void _add(uint64_t id, const std::string_view &data, const Vector &embedding) override;
 
     struct Options {
-        std::size_t dim;
         std::size_t max_elements = 10000;
         std::size_t m = 16;
         std::size_t ef_construction = 200;
