@@ -20,28 +20,22 @@
 namespace sw::redis::llm {
 
 Hnsw::Hnsw(const nlohmann::json &conf, const LlmInfo &llm) :
-    VectorStore("hnsw", conf, llm), _opts(_parse_options(conf)) {
-    _space = std::make_unique<hnswlib::L2Space>(dim());
-    _hnsw = std::make_unique<hnswlib::HierarchicalNSW<float>>(_space.get(), _opts.max_elements, _opts.m, _opts.ef_construction);
-}
+    VectorStore("hnsw", conf, llm), _opts(_parse_options(conf)) {}
 
-bool Hnsw::rem(uint64_t id) {
-    auto iter = _data_store.find(id);
-    if (iter == _data_store.end()) {
-        return false;
-    }
-
+void Hnsw::_rem(uint64_t id) {
     try {
+        assert(_hnsw);
+
         _hnsw->markDelete(id);
     } catch (const std::exception &e) {
         throw Error("failed to delete: " + std::to_string(id) + ", err: " + e.what());
     }
-
-    _data_store.erase(iter);
 }
 
-std::optional<Vector> Hnsw::get(uint64_t id) {
+std::optional<Vector> Hnsw::_get(uint64_t id) {
     try {
+        assert(_hnsw);
+
         return _hnsw->getDataByLabel<float>(id);
     } catch (const std::exception &e) {
         // Fall through
@@ -50,18 +44,11 @@ std::optional<Vector> Hnsw::get(uint64_t id) {
     return std::nullopt;
 }
 
-std::optional<std::string> Hnsw::data(uint64_t id) {
-    auto iter = _data_store.find(id);
-    if (iter == _data_store.end()) {
-        return std::nullopt;
-    }
-
-    return iter->second;
-}
-
-std::vector<std::pair<uint64_t, float>> Hnsw::knn(const Vector &query, std::size_t k) {
+std::vector<std::pair<uint64_t, float>> Hnsw::_knn(const Vector &query, std::size_t k) {
     std::vector<std::pair<uint64_t, float>> output;
     try {
+        assert(_hnsw);
+
         auto res = _hnsw->searchKnn(query.data(), k);
         while (!res.empty()) {
             auto &ele = res.top();
@@ -76,14 +63,21 @@ std::vector<std::pair<uint64_t, float>> Hnsw::knn(const Vector &query, std::size
     return output;
 }
 
-void Hnsw::_add(uint64_t id, const std::string_view &data, const Vector &embedding) {
+void Hnsw::_add(uint64_t id, const Vector &embedding) {
     try {
+        assert(_hnsw);
+
         _hnsw->addPoint(embedding.data(), id);
     } catch (const std::exception &e) {
         throw Error("failed to do set: " + std::to_string(id));
     }
+}
 
-    _data_store[id] = data;
+void Hnsw::_lazily_init(std::size_t dim) {
+    if (!_space) {
+        _space = std::make_unique<hnswlib::L2Space>(dim);
+        _hnsw = std::make_unique<hnswlib::HierarchicalNSW<float>>(_space.get(), _opts.max_elements, _opts.m, _opts.ef_construction);
+    }
 }
 
 Hnsw::Options Hnsw::_parse_options(const nlohmann::json &conf) const {
@@ -98,6 +92,5 @@ Hnsw::Options Hnsw::_parse_options(const nlohmann::json &conf) const {
 
     return opts;
 }
-
 
 }

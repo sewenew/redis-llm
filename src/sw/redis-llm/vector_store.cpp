@@ -28,13 +28,17 @@ uint64_t VectorStore::add(uint64_t id, const std::string_view &data, const Vecto
     if (_dim == 0) {
         // Use the first item's dimension as the dimension of the vector store.
         _dim = embedding.size();
+
+        _lazily_init(_dim);
     }
 
     if (_dim != embedding.size()) {
         throw Error("vector dimension does not match");
     }
 
-    _add(id, data, embedding);
+    _add(id, embedding);
+
+    _data_store[id] = data;
 
     return id;
 }
@@ -42,6 +46,44 @@ uint64_t VectorStore::add(uint64_t id, const std::string_view &data, const Vecto
 uint64_t VectorStore::add(const std::string_view &data, const Vector &embedding) {
     auto id = _auto_gen_id();
     return add(id, data, embedding);
+}
+
+bool VectorStore::rem(uint64_t id) {
+    auto iter = _data_store.find(id);
+    if (iter == _data_store.end()) {
+        return false;
+    }
+
+    _rem(id);
+
+    _data_store.erase(iter);
+
+    return true;
+}
+
+std::optional<Vector> VectorStore::get(uint64_t id) {
+    if (_data_store.empty()) {
+        return std::nullopt;
+    }
+
+    return _get(id);
+}
+
+std::optional<std::string> VectorStore::data(uint64_t id) {
+    auto iter = _data_store.find(id);
+    if (iter == _data_store.end()) {
+        return std::nullopt;
+    }
+
+    return iter->second;
+}
+
+std::vector<std::pair<uint64_t, float>> VectorStore::knn(const Vector &query, std::size_t k) {
+    if (_data_store.empty()) {
+        return {};
+    }
+
+    return _knn(query, k);
 }
 
 uint64_t VectorStore::_auto_gen_id() {

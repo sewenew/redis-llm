@@ -26,17 +26,17 @@ class Hnsw : public VectorStore {
 public:
     Hnsw(const nlohmann::json &conf, const LlmInfo &llm);
 
-    // @return false, if data does not exist. true, otherwise.
-    virtual bool rem(uint64_t id) override;
-
-    virtual std::optional<Vector> get(uint64_t id) override;
-
-    virtual std::optional<std::string> data(uint64_t id) override;
-
-    virtual std::vector<std::pair<uint64_t, float>> knn(const Vector &query, std::size_t k) override;
-
 private:
-    virtual void _add(uint64_t id, const std::string_view &data, const Vector &embedding) override;
+    virtual void _add(uint64_t id, const Vector &embedding) override;
+
+    // @return false, if data does not exist. true, otherwise.
+    virtual void _rem(uint64_t id) override;
+
+    virtual std::optional<Vector> _get(uint64_t id) override;
+
+    virtual std::vector<std::pair<uint64_t, float>> _knn(const Vector &query, std::size_t k) override;
+
+    virtual void _lazily_init(std::size_t dim) override;
 
     struct Options {
         std::size_t max_elements = 10000;

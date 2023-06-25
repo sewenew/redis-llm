@@ -40,13 +40,13 @@ public:
     uint64_t add(const std::string_view &data, const Vector &embedding);
 
     // @return false, if data does not exist. true, otherwise.
-    virtual bool rem(uint64_t id) = 0;
+    bool rem(uint64_t id);
 
-    virtual std::optional<Vector> get(uint64_t id) = 0;
+    std::optional<Vector> get(uint64_t id);
 
-    virtual std::optional<std::string> data(uint64_t id) = 0;
+    std::optional<std::string> data(uint64_t id);
 
-    virtual std::vector<std::pair<uint64_t, float>> knn(const Vector &query, std::size_t k) = 0;
+    std::vector<std::pair<uint64_t, float>> knn(const Vector &query, std::size_t k);
 
     const std::string& type() const {
         return _type;
@@ -76,11 +76,18 @@ public:
         _id_idx = idx;
     }
 
-protected:
+private:
     std::unordered_map<uint64_t, std::string> _data_store;
 
-private:
-    virtual void _add(uint64_t id, const std::string_view &data, const Vector &embedding) = 0;
+    virtual void _add(uint64_t id, const Vector &embedding) = 0;
+
+    virtual void _rem(uint64_t id) = 0;
+
+    virtual std::optional<Vector> _get(uint64_t id) = 0;
+
+    virtual std::vector<std::pair<uint64_t, float>> _knn(const Vector &query, std::size_t k) = 0;
+
+    virtual void _lazily_init(std::size_t dim) = 0;
 
     uint64_t _auto_gen_id();
 
