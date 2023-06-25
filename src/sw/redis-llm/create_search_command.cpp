@@ -75,7 +75,7 @@ CreateSearchCommand::Args CreateSearchCommand::_parse_args(RedisModuleString **a
     }
 
     if (args.params.find("k") == args.params.end()) {
-        args.params["k"] = 10;
+        args.params["k"] = 3;
     }
 
     return args;
