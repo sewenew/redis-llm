@@ -1,13 +1,13 @@
 From redis:latest
 
 ENV LIBDIR /usr/lib/redis/modules
-ENV DEPS "make g++ curl cmake unzip libssl-dev"
+ENV DEPS "make g++ curl cmake unzip"
 
 # Install dependencies
 RUN set -ex;\
 	deps="$DEPS";\
         apt-get update;\
-        apt-get install -y --no-install-recommends $deps;
+        apt-get install -y --no-install-recommends $deps libssl-dev;
 
 # Build redis-llm
 RUN set -ex;\
