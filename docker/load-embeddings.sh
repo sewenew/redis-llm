@@ -16,15 +16,20 @@
 #   limitations under the License.
 # *************************************************************************
 
-if [ $# != 3 ]
+if [ $# != 5 ]
 then
-    echo "Usage: load-embeddings.sh embedding-file data-path store-key"
+    echo "Usage: load-embeddings.sh embedding-file data-path store-key openai-key openai_api_key"
     exit -1
 fi
 
 embedding_file=$1
 data_path=$2
 store_key=$3
+openai_key=$4
+openai_api_key=$5
+
+redis-cli llm.create llm "$openai_key" --params "{\"api_key\":\"$openai_api_key\"}"
+redis-cli llm.create vector_store "$store_key" --llm "$openai_key"
 
 while read line; do
     key=$(echo "$line" | cut -f1)
