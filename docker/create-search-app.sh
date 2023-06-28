@@ -16,9 +16,11 @@
 #   limitations under the License.
 # *************************************************************************
 
-if [ $# != 5 ]
+redis_cli=redis-cli
+
+if [ $# != 6 ]
 then
-    echo "Usage: load-embeddings.sh embedding-file data-path store-key openai-key openai_api_key"
+    echo "Usage: create-search-app.sh embedding-file data-path store-key openai-key openai-api-key search-key"
     exit -1
 fi
 
@@ -27,13 +29,16 @@ data_path=$2
 store_key=$3
 openai_key=$4
 openai_api_key=$5
+search_key=$6
 
-redis-cli llm.create llm "$openai_key" --params "{\"api_key\":\"$openai_api_key\"}"
-redis-cli llm.create vector_store "$store_key" --llm "$openai_key"
+$redis_cli llm.create llm "$openai_key" --params "{\"api_key\":\"$openai_api_key\"}"
+$redis_cli llm.create vector_store "$store_key" --llm "$openai_key"
 
 while read line; do
     key=$(echo "$line" | cut -f1)
     embedding=$(echo "$line" | cut -f2)
     path="$data_path/$key"
-    cat $path | redis-cli -x llm.add "$store_key" --embedding "$embedding"
+    cat $path | $redis_cli -x llm.add "$store_key" --embedding "$embedding"
 done <"$embedding_file"
+
+$redis_cli llm.create search "$search_key" --llm "$openai_key" --vector_store "$store_key"
