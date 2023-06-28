@@ -23,7 +23,7 @@ namespace sw::redis::llm {
 OpenAi::OpenAi(const nlohmann::json &conf) :
     LlmModel("openai", conf),
     _opts(_parse_options(conf)),
-    _cli(_make_client(_opts)) {}
+    _client_pool(_opts.http_opts, _opts.http_pool_opts) {}
 
 std::string OpenAi::predict(const std::string_view &input, const nlohmann::json &params) {
     try {
@@ -35,11 +35,21 @@ std::string OpenAi::predict(const std::string_view &input, const nlohmann::json 
         auto req = _opts.chat;
         req["messages"] = _construct_msg(input);
 
-        auto ans = _query(_opts.chat_uri, req);
+        auto ans = _query(_opts.chat_path, req);
 
-        return ans["choices"][0]["message"]["content"].get<std::string>();
+        auto &choices = ans["choices"];
+        if (!choices.is_array() || choices.empty()) {
+            throw Error("invalid chat choices");
+        }
+
+        auto &content = choices[0]["message"]["content"];
+        if (!content.is_string()) {
+            throw Error("invalid chat choices");
+        }
+
+        return content.get<std::string>();
     } catch (const std::exception &e) {
-        throw Error(std::string("failed to predict: ") + e.what());
+        throw Error(std::string("failed to predict with openai: ") + e.what());
     }
 
     return "";
@@ -56,7 +66,7 @@ std::string OpenAi::chat(const std::string_view &input, const nlohmann::json &pa
         auto req = _opts.chat;
         req["messages"] = _construct_msg(input);
 
-        auto ans = _query(_opts.chat_uri, req);
+        auto ans = _query(_opts.chat_path, req);
 
         return ans["choices"][0]["message"]["content"].get<std::string>();
     } catch (const std::exception &e) {
@@ -76,9 +86,19 @@ Vector OpenAi::embedding(const std::string_view &input, const nlohmann::json &pa
         auto req = _opts.embedding;
         req["input"] = input;
 
-        auto ans = _query(_opts.embedding_uri, req);
+        auto ans = _query(_opts.embedding_path, req);
 
-        return ans["data"][0]["embedding"].get<Vector>();
+        auto &data = ans["data"];
+        if (!data.is_array() || data.empty()) {
+            throw Error("invalid embedding response");
+        }
+
+        auto &embedding = data[0]["embedding"];
+        if (!embedding.is_array()) {
+            throw Error("invalid embedding response");
+        }
+
+        return embedding.get<Vector>();
     } catch (const std::exception &e) {
         throw Error(std::string("failed to request embedding: ") + e.what());
     }
@@ -100,32 +120,33 @@ nlohmann::json OpenAi::_construct_msg(const std::string_view &input) const {
 }
 
 nlohmann::json OpenAi::_query(const std::string &path, const nlohmann::json &req) {
-    auto res = _cli->Post(path, req.dump(), "application/json");
-    if (!res) {
-        throw Error("failed to request openai: " + httplib::to_string(res.error()));
-    }
+    SafeClient cli(_client_pool);
+    auto output = cli.client().post(path, req.dump());
 
-    if (res->status != 200) {
-        throw Error("failed to request openai: " + std::to_string(res->status) + ", " + res->reason);
-    }
-
-    return nlohmann::json::parse(res->body);
+    return nlohmann::json::parse(output);
 }
 
 OpenAi::Options OpenAi::_parse_options(const nlohmann::json &conf) const {
     Options opts;
     try {
+        // {"api_key": "", "uri" : "", "chat": {"chat_path":"", "model": ""}, "embedding": {"embedding_path":"", "model":""}, "http":{"socket_timeout":"5s","connect_timeout":"5s", "enable_certificate_verification":false, "pool" : {"size":3, "wait_timeout":"0s", "connection_lifetime":"0s"}}}
         opts.api_key = conf.at("api_key").get<std::string>();
+        opts.uri = conf.value<std::string>("uri", "");
         opts.chat = conf.value<nlohmann::json>("chat", nlohmann::json{});
-        opts.chat_uri = conf.value<std::string>("chat_uri", "/v1/chat/completions");
+        opts.chat_path = conf.value<std::string>("chat_path", "/v1/chat/completions");
         opts.embedding = conf.value<nlohmann::json>("embedding", nlohmann::json{});
-        opts.embedding_uri = conf.value<std::string>("embedding_uri", "/v1/embeddings");
+        opts.embedding_path = conf.value<std::string>("embedding_path", "/v1/embeddings");
         if (opts.chat.find("model") == opts.chat.end()) {
             opts.chat["model"] = "gpt-3.5-turbo";
         }
         if (opts.embedding.find("model") == opts.embedding.end()) {
             opts.embedding["model"] = "text-embedding-ada-002";
         }
+
+        std::tie(opts.http_opts, opts.http_pool_opts) = _parse_http_options(conf);
+
+        opts.http_opts.uri = "https://api.openai.com";
+        opts.http_opts.bearer_token = opts.api_key;
     } catch (const nlohmann::json::exception &e) {
         throw Error(std::string("failed to parse openai options: ") + e.what() + ":" + conf.dump());
     }
@@ -133,12 +154,23 @@ OpenAi::Options OpenAi::_parse_options(const nlohmann::json &conf) const {
     return opts;
 }
 
-std::unique_ptr<httplib::Client> OpenAi::_make_client(const Options &opts) const {
-    auto cli = std::make_unique<httplib::Client>("https://api.openai.com");
-    cli->set_follow_location(true);
-    cli->set_bearer_token_auth(opts.api_key);
+auto OpenAi::_parse_http_options(const nlohmann::json &conf) const
+    -> std::pair<HttpClientOptions, HttpClientPoolOptions> {
+    auto iter = conf.find("http");
+    if (iter == conf.end()) {
+        return {};
+    }
+    const auto &http_conf = iter.value();
 
-    return cli;
+    auto http_opts = HttpClientOptions(http_conf);
+
+    HttpClientPoolOptions pool_opts;
+    iter = http_conf.find("pool");
+    if (iter != http_conf.end()) {
+        pool_opts = HttpClientPoolOptions(iter.value());
+    }
+
+    return std::make_pair(std::move(http_opts), std::move(pool_opts));
 }
 
 }

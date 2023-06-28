@@ -18,6 +18,7 @@
 #define SEWENEW_REDIS_LLM_OPENAI_H
 
 #include "nlohmann/json.hpp"
+#include "sw/redis-llm/http_client.h"
 #include "sw/redis-llm/llm_model.h"
 
 #define CPPHTTPLIB_OPENSSL_SUPPORT
@@ -42,26 +43,33 @@ private:
     struct Options {
         std::string api_key;
 
+        std::string uri;
+
         nlohmann::json chat;
 
-        std::string chat_uri;
+        std::string chat_path;
 
         nlohmann::json embedding;
 
-        std::string embedding_uri;
+        std::string embedding_path;
+
+        HttpClientOptions http_opts;
+
+        HttpClientPoolOptions http_pool_opts;
     };
 
     Options _parse_options(const nlohmann::json &conf) const;
+
+    auto _parse_http_options(const nlohmann::json &conf) const
+        -> std::pair<HttpClientOptions, HttpClientPoolOptions>;
 
     nlohmann::json _construct_msg(const std::string_view &input) const;
 
     nlohmann::json _query(const std::string &path, const nlohmann::json &input);
 
-    std::unique_ptr<httplib::Client> _make_client(const Options &opts) const;
-
     Options _opts;
 
-    std::unique_ptr<httplib::Client> _cli;
+    HttpClientPool _client_pool;
 };
 
 }
