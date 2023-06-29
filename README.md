@@ -27,6 +27,11 @@ In order to make LLM access private data, and remember more history, I wrote red
 
 ### Features
 
+- Run LLM applications with prompt template.
+- Vector store.
+- Ask questions on private data saved in vector store.
+- Chat with a long history (this feature will be ready in the near future).
+
 ## Installation
 
 ### Run redis-llm With Docker
@@ -103,6 +108,42 @@ List module info:
    4) (integer) 1
 ```
 
+Create a LLM of OpenAI type.
+
+```
+127.0.0.1:6379> LLM.CREATE LLM openai --params '{"api_key" : "$OPENAI_API_KEY"}'
+(integer) 1
+```
+
+Create a *hello world* application with the created LLM, and run it.
+
+```
+127.0.0.1:6379> LLM.CREATE APP hello-world --LLM openai --PROMPT 'Say hello to {{name}}'
+(integer) 1
+127.0.0.1:6379> LLM.RUN hello-world --vars '{"name":"LLM"}'
+"Hello LLM! It's nice to meet you. How can I assist you today?"
+```
+
+Create a vector store, and add doc to it.
+
+```
+127.0.0.1:6379> LLM.CREATE VECTOR_STORE store --LLM openai
+(integer) 1
+127.0.0.1:6379> LLM.ADD store 'redis-llm is a Redis module that integrates LLM (Large Language Model) with Redis'
+(integer) 1
+```
+
+Create a search application which can answer questions based on data saved in the vector store.
+
+```
+127.0.0.1:6379> LLM.CREATE SEARCH search-private-data --LLM openai --VECTOR_STORE store
+(integer) 1
+127.0.0.1:6379> LLM.ADD store 'redis-llm is an open source project written by sewenew'
+(integer) 1
+127.0.0.1:6379> LLM.RUN search-private-data 'who is the author of redis-llm'
+"The author of redis-llm is sewenew."
+```
+
 ### C++ Client
 
 If you are using C++, you can use [redis-plus-plus](https://github.com/sewenew/redis-plus-plus) to send *redis-llm* commands:
@@ -112,7 +153,7 @@ If you are using C++, you can use [redis-plus-plus](https://github.com/sewenew/r
 
 ### Python Client
 
-If you are using Python, you can use [redis-py](https://github.com/andymccurdy/redis-py) to send *redis-llm* commands:
+If you are using Python, you can use [redis-py](https://github.com/redis/redis-py) to send *redis-llm* commands:
 
 ```Python
 ```
