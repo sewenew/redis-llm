@@ -73,6 +73,16 @@ HttpClientOptions::HttpClientOptions(const nlohmann::json &conf) {
     if (iter != conf.end()) {
         enable_certificate_verification = iter.value().get<bool>();
     }
+
+    iter = conf.find("proxy_host");
+    if (iter != conf.end()) {
+        proxy_host = iter.value().get<std::string>();
+    }
+
+    iter = conf.find("proxy_port");
+    if (iter != conf.end()) {
+        proxy_port = iter.value().get<int>();
+    }
 }
 
 HttpClientPoolOptions::HttpClientPoolOptions(const nlohmann::json &conf) {
@@ -130,6 +140,10 @@ std::unique_ptr<httplib::Client> HttpClient::_make_client(const HttpClientOption
     }
 
     cli->enable_server_certificate_verification(opts.enable_certificate_verification);
+
+    if (!opts.proxy_host.empty()) {
+        cli->set_proxy(opts.proxy_host, opts.proxy_port);
+    }
 
     return cli;
 }

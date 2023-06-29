@@ -39,6 +39,10 @@ struct HttpClientOptions {
     std::string bearer_token;
 
     bool enable_certificate_verification = false;
+
+    std::string proxy_host;
+
+    int proxy_port = 0;
 };
 
 struct HttpClientPoolOptions {
