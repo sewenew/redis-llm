@@ -16,6 +16,7 @@
 
 #include "sw/redis-llm/llm_model.h"
 #include <cassert>
+#include "sw/redis-llm/azure_openai.h"
 #include "sw/redis-llm/errors.h"
 #include "sw/redis-llm/openai.h"
 #include "sw/redis-llm/llama_cpp.h"
@@ -25,6 +26,7 @@ namespace sw::redis::llm {
 LlmModelFactory::LlmModelFactory() {
     _register("openai", std::make_unique<LlmModelCreatorTpl<OpenAi>>());
     _register("llamacpp", std::make_unique<LlmModelCreatorTpl<LlamaCpp>>());
+    _register("azure_openai", std::make_unique<LlmModelCreatorTpl<AzureOpenAi>>());
 }
 
 LlmModelSPtr LlmModelFactory::create(const std::string &type, const nlohmann::json &conf) const {

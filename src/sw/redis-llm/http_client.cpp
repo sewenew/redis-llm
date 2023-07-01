@@ -113,6 +113,20 @@ std::string HttpClient::post(const std::string &path,
         const std::string &body,
         const std::string &content_type) {
     auto res = _cli->Post(path, body, content_type);
+
+    return _parse_response(res);
+}
+
+std::string HttpClient::post(const std::string &path,
+        const httplib::Headers &headers,
+        const std::string &body,
+        const std::string &content_type) {
+    auto res = _cli->Post(path, headers, body, content_type);
+
+    return _parse_response(res);
+}
+
+std::string HttpClient::_parse_response(const httplib::Result &res) {
     if (!res) {
         _cli.release();
 

@@ -63,6 +63,9 @@ public:
 
     std::string post(const std::string &path, const std::string &body, const std::string &content_type = "application/json");
 
+    std::string post(const std::string &path, const httplib::Headers &headers,
+            const std::string &body, const std::string &content_type = "application/json");
+
     void reconnect() {
         _cli = _make_client(_opts);
     }
@@ -77,6 +80,8 @@ public:
     }
 
 private:
+    std::string _parse_response(const httplib::Result &res);
+
     std::unique_ptr<httplib::Client> _make_client(const HttpClientOptions &opts) const;
 
     HttpClientOptions _opts;
@@ -125,7 +130,7 @@ private:
 class SafeClient {
 public:
     explicit SafeClient(HttpClientPool &pool) : _pool(pool), _cli(_pool.fetch()) {
-        assert(!_connection.broken());
+        assert(!_cli.broken());
     }
 
     SafeClient(const SafeClient &) = delete;
