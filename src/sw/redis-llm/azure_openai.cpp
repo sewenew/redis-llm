@@ -53,7 +53,10 @@ std::string AzureOpenAi::predict(const std::string_view &input, const nlohmann::
     return "";
 }
 
-std::string AzureOpenAi::chat(const std::string_view &input, const nlohmann::json &params) {
+std::string AzureOpenAi::chat(const std::string_view &input,
+        const std::string &history_summary,
+        const nlohmann::json &recent_history,
+        const nlohmann::json &params) {
     /*
     try {
         if (_opts.chat.is_null()) {

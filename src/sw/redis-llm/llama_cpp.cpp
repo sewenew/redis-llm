@@ -31,7 +31,10 @@ std::string LlamaCpp::predict(const std::string_view &input, const nlohmann::jso
     return "";
 }
 
-std::string LlamaCpp::chat(const std::string_view &input, const nlohmann::json &params) {
+std::string LlamaCpp::chat(const std::string_view &input,
+        const std::string &history_summary,
+        const nlohmann::json &recent_history,
+        const nlohmann::json &params) {
     return "";
 }
 

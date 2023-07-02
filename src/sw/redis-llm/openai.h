@@ -37,6 +37,8 @@ public:
             const nlohmann::json &params = nlohmann::json::object()) override;
 
     virtual std::string chat(const std::string_view &input,
+            const std::string &history_summary,
+            const nlohmann::json &recent_history,
             const nlohmann::json &params = nlohmann::json::object()) override;
 
 private:
@@ -63,7 +65,9 @@ private:
     auto _parse_http_options(const nlohmann::json &conf) const
         -> std::pair<HttpClientOptions, HttpClientPoolOptions>;
 
-    nlohmann::json _construct_msg(const std::string_view &input) const;
+    nlohmann::json _construct_msg(const std::string_view &input,
+            nlohmann::json recent_history = {},
+            std::string system_msg = "") const;
 
     nlohmann::json _query(const std::string &path, const nlohmann::json &input);
 

@@ -55,8 +55,10 @@ std::string OpenAi::predict(const std::string_view &input, const nlohmann::json 
     return "";
 }
 
-std::string OpenAi::chat(const std::string_view &input, const nlohmann::json &params) {
-    /*
+std::string OpenAi::chat(const std::string_view &input,
+        const std::string &history_summary,
+        const nlohmann::json &recent_history,
+        const nlohmann::json &params) {
     try {
         if (_opts.chat.is_null()) {
             throw Error("no chat conf is specified");
@@ -64,7 +66,14 @@ std::string OpenAi::chat(const std::string_view &input, const nlohmann::json &pa
 
         // Set model and other parameters.
         auto req = _opts.chat;
-        req["messages"] = _construct_msg(input);
+
+        std::string system_msg;
+        if (!history_summary.empty()) {
+            // TODO: use prompt to construct system message
+            system_msg = ;
+        }
+
+        req["messages"] = _construct_msg(input, recent_history, system_msg);
 
         auto ans = _query(_opts.chat_path, req);
 
@@ -72,7 +81,6 @@ std::string OpenAi::chat(const std::string_view &input, const nlohmann::json &pa
     } catch (const std::exception &e) {
         throw Error(std::string("failed to predict: ") + e.what());
     }
-    */
 
     return "";
 }
@@ -107,16 +115,28 @@ Vector OpenAi::embedding(const std::string_view &input, const nlohmann::json &pa
     return {};
 }
 
-nlohmann::json OpenAi::_construct_msg(const std::string_view &input) const {
-    auto messages= nlohmann::json::array();
+nlohmann::json OpenAi::_construct_msg(const std::string_view &input,
+        nlohmann::json recent_history,
+        std::string system_info) const {
+    nlohmann::json msgs;
+
+    if (!system_info.empty()) {
+        nlohmann::json system_msg;
+        system_msg["role"] = "system";
+        system_msg["content"] = std::move(system_info);
+        msgs.push_back(std::move(system_msg));
+    }
+
+    msgs.insert(msgs.end(),
+            std::make_move_iterator(recent_history.begin()),
+            std::make_move_iterator(recent_history.end()));
 
     nlohmann::json msg;
     msg["role"] = "user";
     msg["content"] = input;
+    msgs.push_back(std::move(msg));
 
-    messages.push_back(std::move(msg));
-
-    return messages;
+    return msgs;
 }
 
 nlohmann::json OpenAi::_query(const std::string &path, const nlohmann::json &req) {

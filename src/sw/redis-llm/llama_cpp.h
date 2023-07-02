@@ -33,6 +33,8 @@ public:
             const nlohmann::json &params = nlohmann::json::object()) override;
 
     virtual std::string chat(const std::string_view &input,
+            const std::string &history_summary,
+            const nlohmann::json &recent_history,
             const nlohmann::json &params = nlohmann::json::object()) override;
 
 private:
