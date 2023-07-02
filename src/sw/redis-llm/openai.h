@@ -66,8 +66,8 @@ private:
         -> std::pair<HttpClientOptions, HttpClientPoolOptions>;
 
     nlohmann::json _construct_msg(const std::string_view &input,
-            nlohmann::json recent_history = {},
-            std::string system_msg = "") const;
+            std::string system_msg = "",
+            nlohmann::json recent_history = {}) const;
 
     nlohmann::json _query(const std::string &path, const nlohmann::json &input);
 

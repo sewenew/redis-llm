@@ -26,7 +26,7 @@ ChatHistory::ChatHistory(const ChatHistoryOptions &opts) :
         throw Error("invalid chat history options");
     }
 
-    _store = RedisLlm.instance().create_vector_store(_opts.store_type, _opts.store_params, _opts.llm);
+    _store = RedisLlm::instance().create_vector_store(_opts.store_type, _opts.store_params, _opts.llm);
 }
 
 void ChatHistory::add(LlmModel &model, std::string role, std::string message) {
@@ -35,7 +35,7 @@ void ChatHistory::add(LlmModel &model, std::string role, std::string message) {
     _summarize_if_needed(model, msg);
 
     _latest_msgs.push_back(std::move(msg));
-    while (_latest_msgs.size() > _opts.msg_ctx_cnt) {
+    while (static_cast<int>(_latest_msgs.size()) > _opts.msg_ctx_cnt) {
         _latest_msgs.pop_front();
     }
 }
@@ -64,7 +64,7 @@ std::string ChatHistory::_get_history_summary(LlmModel &model, const std::string
         if (!res.empty()) {
             res += "\n";
         }
-        res += val;
+        res += *val;
     }
 
     return res;
@@ -85,7 +85,7 @@ nlohmann::json ChatHistory::_get_latest_msgs() {
 void ChatHistory::_summarize_if_needed(LlmModel &model, const Msg &msg) {
     _msgs_to_be_summarize.push_back(msg);
 
-    if (_msgs_to_be_summarize.size() >= _opts.summary_cnt) {
+    if (static_cast<int>(_msgs_to_be_summarize.size()) >= _opts.summary_cnt) {
         _summarize(model, _msgs_to_be_summarize);
 
         _msgs_to_be_summarize.clear();
@@ -117,4 +117,6 @@ void ChatHistory::_summarize(LlmModel &model, const std::vector<Msg> &msgs) {
     auto embedding = model.embedding(output, _opts.llm.params);
 
     _store->add(output, embedding);
+}
+
 }

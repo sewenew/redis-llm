@@ -21,7 +21,9 @@
 #include <vector>
 #include "nlohmann/json.hpp"
 #include "sw/redis-llm/llm_model.h"
+#include "sw/redis-llm/prompt.h"
 #include "sw/redis-llm/utils.h"
+#include "sw/redis-llm/vector_store.h"
 
 namespace sw::redis::llm {
 
@@ -36,7 +38,7 @@ struct ChatHistoryOptions {
 Conversation: """
 {{conversation}}
 """
-Summary: )"
+Summary: )";
 
     // Use latest n messages as context.
     int msg_ctx_cnt = 5;
@@ -47,7 +49,7 @@ Summary: )"
 
     std::string store_type = "hnsw";
 
-    nlohmann::json store_params = nlohmann:json::object();
+    nlohmann::json store_params = nlohmann::json::object();
 };
 
 class ChatHistory {
