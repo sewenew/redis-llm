@@ -19,10 +19,11 @@
 
 #include <chrono>
 #include <string>
+#include <deque>
+#include <map>
+#include <curl/curl.h>
 #include "nlohmann/json.hpp"
-
-#define CPPHTTPLIB_OPENSSL_SUPPORT
-#include "httplib.h"
+#include "sw/redis-llm/errors.h"
 
 namespace sw::redis::llm {
 
@@ -63,8 +64,10 @@ public:
 
     std::string post(const std::string &path, const std::string &body, const std::string &content_type = "application/json");
 
-    std::string post(const std::string &path, const httplib::Headers &headers,
-            const std::string &body, const std::string &content_type = "application/json");
+    std::string post(const std::string &path,
+            const std::unordered_multimap<std::string, std::string> &headers,
+            const std::string &body,
+            const std::string &content_type = "application/json");
 
     void reconnect() {
         _cli = _make_client(_opts);
@@ -80,15 +83,33 @@ public:
     }
 
 private:
-    std::string _parse_response(const httplib::Result &res);
+    struct CurlDeleter {
+        void operator()(CURL *handle) const {
+            if (handle != nullptr) {
+                curl_easy_cleanup(handle);
+            }
+        }
+    };
+    using Client = std::unique_ptr<CURL, CurlDeleter>;
 
-    std::unique_ptr<httplib::Client> _make_client(const HttpClientOptions &opts) const;
+    template <typename T>
+    void _set_option(CURL *handle, CURLoption opt, T params) const {
+        if (curl_easy_setopt(handle, opt, params) != CURLE_OK) {
+            throw Error("failed to set curl option: " + std::to_string(opt));
+        }
+    }
+
+    void _set_headers(CURL *handle,
+            const std::string &content_type,
+            std::unordered_multimap<std::string, std::string> headers) const;
+
+    Client _make_client(const HttpClientOptions &opts) const;
 
     HttpClientOptions _opts;
 
     std::chrono::time_point<std::chrono::steady_clock> _create_time{};
 
-    std::unique_ptr<httplib::Client> _cli;
+    Client  _cli;
 };
 
 class HttpClientPool {

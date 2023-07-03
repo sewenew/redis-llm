@@ -122,7 +122,7 @@ nlohmann::json AzureOpenAi::_construct_msg(const std::string_view &input) const 
 nlohmann::json AzureOpenAi::_query(const std::string &path, const nlohmann::json &req) {
     SafeClient cli(_client_pool);
 
-    httplib::Headers headers = {{"api-key", _opts.api_key}};
+    auto headers = std::unordered_multimap<std::string, std::string>{{"api-key", _opts.api_key}};
     auto output = cli.client().post(path, headers, req.dump());
 
     return nlohmann::json::parse(output);

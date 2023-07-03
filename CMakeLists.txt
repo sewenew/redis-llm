@@ -23,6 +23,8 @@ file(GLOB PROJECT_SOURCE_FILES "${PROJECT_SOURCE_DIR}/*.cpp")
 
 find_package(OpenSSL REQUIRED)
 
+find_package(CURL REQUIRED)
+
 set(SHARED_LIB shared)
 
 add_library(${SHARED_LIB} SHARED ${PROJECT_SOURCE_FILES})
@@ -33,9 +35,11 @@ target_include_directories(${SHARED_LIB} PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/${REDIS_LLM_HEADER_DIR}>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/deps>
         $<BUILD_INTERFACE:${OPENSSL_INCLUDE_DIR}>
+        $<BUILD_INTERFACE:${CURL_INCLUDE_DIR}>
         $<INSTALL_INTERFACE:include>)
 
 target_link_libraries(${SHARED_LIB} PUBLIC ${OPENSSL_LIBRARIES})
+target_link_libraries(${SHARED_LIB} PUBLIC ${CURL_LIBRARIES})
 
 if(APPLE)
     target_link_libraries(${SHARED_LIB} PUBLIC "-framework AppKit -framework Security")

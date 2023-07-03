@@ -21,9 +21,6 @@
 #include "sw/redis-llm/http_client.h"
 #include "sw/redis-llm/llm_model.h"
 
-#define CPPHTTPLIB_OPENSSL_SUPPORT
-#include "httplib.h"
-
 namespace sw::redis::llm {
 
 class AzureOpenAi : public LlmModel {

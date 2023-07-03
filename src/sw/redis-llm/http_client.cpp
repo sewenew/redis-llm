@@ -19,6 +19,14 @@
 
 namespace {
 
+size_t write_callback(void *ptr, size_t size, size_t nmemb, std::string *res) {
+    auto len = size * nmemb;
+    auto *begin = static_cast<char *>(ptr);
+    auto *end = begin + len;
+    res->insert(res->end(), begin, end);
+    return len;
+}
+
 std::chrono::milliseconds parse_time(const std::string &str) {
     std::size_t timeout = 0;
     std::string unit;
@@ -112,54 +120,93 @@ HttpClient::HttpClient(const HttpClientOptions &opts) :
 std::string HttpClient::post(const std::string &path,
         const std::string &body,
         const std::string &content_type) {
-    auto res = _cli->Post(path, body, content_type);
-
-    return _parse_response(res);
+    return post(path, {}, body, content_type);
 }
 
 std::string HttpClient::post(const std::string &path,
-        const httplib::Headers &headers,
+        const std::unordered_multimap<std::string, std::string> &headers,
         const std::string &body,
         const std::string &content_type) {
-    auto res = _cli->Post(path, headers, body, content_type);
+    _set_headers(_cli.get(), content_type, headers);
 
-    return _parse_response(res);
+    std::string uri = _opts.uri + path;
+    _set_option(_cli.get(), CURLOPT_URL, uri.data());
+
+    _set_option<long>(_cli.get(), CURLOPT_POSTFIELDSIZE, body.size());
+    _set_option(_cli.get(), CURLOPT_POSTFIELDS, body.data());
+    _set_option(_cli.get(), CURLOPT_WRITEFUNCTION, write_callback);
+
+    std::string response;
+    _set_option(_cli.get(), CURLOPT_WRITEDATA, &response);
+
+    auto res = curl_easy_perform(_cli.get());
+    if (res != CURLE_OK) {
+        throw Error(std::string("failed to do post: ") + curl_easy_strerror(res));
+    }
+
+    return response;
 }
 
-std::string HttpClient::_parse_response(const httplib::Result &res) {
-    if (!res) {
-        _cli.release();
-
-        throw Error("failed to do http request: " + httplib::to_string(res.error()));
+void HttpClient::_set_headers(CURL *handle,
+        const std::string &content_type,
+        std::unordered_multimap<std::string, std::string> headers) const {
+    if (!_opts.bearer_token.empty()) {
+        headers.emplace("Authorization", "Bearer " + _opts.bearer_token);
     }
 
-    if (res->status != 200) {
-        throw Error("failed to do http request: " + std::to_string(res->status) + ", " + res->reason);
+    if (!content_type.empty()) {
+        headers.emplace("Content-Type", content_type);
     }
 
-    return res->body;
+    curl_slist *slist = nullptr;
+    try {
+        for (const auto &[key, value] : headers) {
+            std::string header = key + ": " + value;
+            auto *tmp = curl_slist_append(slist, header.data());
+            if (tmp == nullptr) {
+                throw Error("failed to append header: " + header);
+            }
+            slist = tmp;
+        }
+
+        _set_option(handle, CURLOPT_HTTPHEADER, slist);
+        _set_option(handle, CURLOPT_HEADEROPT, CURLHEADER_SEPARATE);
+    } catch (...) {
+        if (slist != nullptr) {
+            curl_slist_free_all(slist);
+        }
+        throw;
+    }
+
+    if (slist != nullptr) {
+        curl_slist_free_all(slist);
+    }
 }
 
-std::unique_ptr<httplib::Client> HttpClient::_make_client(const HttpClientOptions &opts) const {
-    auto cli = std::make_unique<httplib::Client>(opts.uri);
-
-    cli->set_connection_timeout(opts.connect_timeout);
-    cli->set_read_timeout(opts.socket_timeout);
-    cli->set_write_timeout(opts.socket_timeout);
-
-    cli->set_follow_location(true);
-
-    if (!opts.bearer_token.empty()) {
-        cli->set_bearer_token_auth(opts.bearer_token);
+HttpClient::Client HttpClient::_make_client(const HttpClientOptions &opts) const {
+    auto client = Client(curl_easy_init());
+    if (!client) {
+        throw Error("failed to create curl handle");
     }
 
-    cli->enable_server_certificate_verification(opts.enable_certificate_verification);
+    _set_option(client.get(), CURLOPT_FOLLOWLOCATION, 1L);
+
+    long connection_timeout_ms = opts.connect_timeout.count();
+    _set_option(client.get(), CURLOPT_CONNECTTIMEOUT_MS, connection_timeout_ms);
+
+    long socket_timeout_ms = opts.socket_timeout.count();
+    _set_option(client.get(), CURLOPT_TIMEOUT_MS, socket_timeout_ms);
+
+    long verify = opts.enable_certificate_verification ? 2L : 0L;
+    _set_option(client.get(), CURLOPT_SSL_VERIFYHOST, verify);
 
     if (!opts.proxy_host.empty()) {
-        cli->set_proxy(opts.proxy_host, opts.proxy_port);
+        _set_option(client.get(), CURLOPT_PROXY, opts.proxy_host.data());
+
+        _set_option(client.get(), CURLOPT_PROXYPORT, static_cast<long>(opts.proxy_port));
     }
 
-    return cli;
+    return client;
 }
 
 HttpClientPool::HttpClientPool(const HttpClientOptions &opts,
