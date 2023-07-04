@@ -7,7 +7,7 @@ ENV DEPS "make g++ curl cmake unzip"
 RUN set -ex;\
 	deps="$DEPS";\
         apt-get update;\
-        apt-get install -y --no-install-recommends $deps libssl-dev;
+        apt-get install -y --no-install-recommends $deps libssl-dev libcurl4-openssl-dev;
 
 # Build redis-llm
 RUN set -ex;\

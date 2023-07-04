@@ -31,8 +31,8 @@ std::string AzureOpenAi::predict(const std::string_view &input, const nlohmann::
         auto req = _opts.chat;
         req["messages"] = _construct_msg(input);
 
-        auto path = "/openai/deployments/" + _opts.deployment_id +
-            "chat/completions?api-version=" + _opts.api_version;
+        auto path = "/openai/deployments/" + _opts.chat_deployment_id +
+            "/chat/completions?api-version=" + _opts.api_version;
         auto ans = _query(path, req);
 
         auto &choices = ans["choices"];
@@ -84,7 +84,7 @@ Vector AzureOpenAi::embedding(const std::string_view &input, const nlohmann::jso
         auto req = _opts.embedding;
         req["input"] = input;
 
-        auto path = "/openai/deployments/" + _opts.deployment_id +
+        auto path = "/openai/deployments/" + _opts.embedding_deployment_id +
             "/embeddings?api-version=" + _opts.api_version;
         auto ans = _query(path, req);
 
@@ -131,10 +131,11 @@ nlohmann::json AzureOpenAi::_query(const std::string &path, const nlohmann::json
 AzureOpenAi::Options AzureOpenAi::_parse_options(const nlohmann::json &conf) const {
     Options opts;
     try {
-        // {"api_key": "", "resource_name" : "", "deployment_id":"", "api-version":"", "chat": {}, "embedding": {}, "http":{"socket_timeout":"5s","connect_timeout":"5s", "enable_certificate_verification":false, "proxy_host" :"", "proxy_port":0, "pool" : {"size":3, "wait_timeout":"0s", "connection_lifetime":"0s"}}}
+        // {"api_key": "", "resource_name" : "", "chat_deployment_id":"", "embedding_deployment_id":"", "api_version":"", "chat": {}, "embedding": {}, "http":{"socket_timeout":"5s","connect_timeout":"5s", "enable_certificate_verification":false, "proxy_host" :"", "proxy_port":0, "pool" : {"size":3, "wait_timeout":"0s", "connection_lifetime":"0s"}}}
         opts.api_key = conf.at("api_key").get<std::string>();
         opts.resource_name = conf.at("resource_name").get<std::string>();
-        opts.deployment_id = conf.at("deployment_id").get<std::string>();
+        opts.chat_deployment_id = conf.at("chat_deployment_id").get<std::string>();
+        opts.embedding_deployment_id = conf.at("embedding_deployment_id").get<std::string>();
         opts.api_version = conf.at("api_version").get<std::string>();
 
         opts.chat = conf.value<nlohmann::json>("chat", nlohmann::json{});

@@ -42,7 +42,9 @@ private:
     struct Options {
         std::string resource_name;
 
-        std::string deployment_id;
+        std::string chat_deployment_id;
+
+        std::string embedding_deployment_id;
 
         std::string api_version;
 

@@ -18,9 +18,12 @@
 #define SEWENEW_REDIS_LLM_HTTP_CLIENT_H
 
 #include <chrono>
-#include <string>
+#include <condition_variable>
 #include <deque>
 #include <map>
+#include <memory>
+#include <mutex>
+#include <string>
 #include <curl/curl.h>
 #include "nlohmann/json.hpp"
 #include "sw/redis-llm/errors.h"
@@ -70,7 +73,7 @@ public:
             const std::string &content_type = "application/json");
 
     void reconnect() {
-        _cli = _make_client(_opts);
+        _cli = _make_client();
     }
 
     bool broken() const {
@@ -92,6 +95,15 @@ private:
     };
     using Client = std::unique_ptr<CURL, CurlDeleter>;
 
+    struct ListDeleter {
+        void operator()(curl_slist *slist) const {
+            if (slist != nullptr) {
+                curl_slist_free_all(slist);
+            }
+        }
+    };
+    using SList = std::unique_ptr<curl_slist, ListDeleter>;
+
     template <typename T>
     void _set_option(CURL *handle, CURLoption opt, T params) const {
         if (curl_easy_setopt(handle, opt, params) != CURLE_OK) {
@@ -99,11 +111,10 @@ private:
         }
     }
 
-    void _set_headers(CURL *handle,
-            const std::string &content_type,
+    SList _build_header(const std::string &content_type,
             std::unordered_multimap<std::string, std::string> headers) const;
 
-    Client _make_client(const HttpClientOptions &opts) const;
+    Client _make_client() const;
 
     HttpClientOptions _opts;
 
