@@ -10,6 +10,7 @@
     - [redis-cli](#redis-cli)
     - [C++ Client](#c-client)
     - [Python Client](#python-client)
+- [Terminology](#terminology)
 - [Commands](#commands)
     - [Path](#path)
 - [Author](#author)
@@ -115,7 +116,7 @@ Create a LLM of OpenAI type.
 (integer) 1
 ```
 
-Create a *hello world* application with the created LLM, and run it.
+Create a *hello world* application with the created LLM and a prompt, and run it.
 
 ```
 127.0.0.1:6379> LLM.CREATE APP hello-world --LLM openai --PROMPT 'Say hello to {{name}}'
@@ -158,9 +159,64 @@ If you are using Python, you can use [redis-py](https://github.com/redis/redis-p
 ```Python
 ```
 
+## Terminology
+
+You can use *redis-llm* to create applications with LLM, e.g. chat bot. The following are some terminologies.
+
+### LLM
+
+Large Language Model.
+
+Currently, we support the following LLMs:
+
+- [OpenAI](https://platform.openai.com/docs/api-reference)
+- [Azure OpenAI](https://azure.microsoft.com/en-us/products/cognitive-services/openai-service)
+
+If you need other LLMs support, feel free to leave a message [here](https://github.com/sewenew/redis-llm/issues/2).
+
+### Prompt
+
+You input some *prompt*, and LLMs return a text *completion*. A good prompt makes a good completion. Check [this](https://help.openai.com/en/articles/6654000-best-practices-for-prompt-engineering-with-openai-api) for some best practices for prompt engineering.
+
+The following command creates an LLM application with a prompt:
+
+```
+LLM.CREATE APP test-application --PROMPT 'You are an expert on prompt engineering. Please give some best practices for prompt engineering.'
+```
+
+Once you run the application, it gives you text completion, i.e. best practices for prompt engineering, based on your prompt.
+
+```
+LLM.RUN test-application
+```
+
+#### Prompt Template
+
+Besides hard-coded prompt, *redis-llm* also supports prompt template. You can create a prompt template with some variables. With different values for these variables, you can get a dynamic template.
+
+The following command creates an LLM application with a prompt template (NOTE: in order to make the following example work, you need to create an LLM named *llm* beforehand):
+
+```
+LLM.CREATE APP app-with-prompt-template --LLM llm --PROMPT 'You are an expert on {{domain}}. Please answer the following question: {{question}}'
+```
+
+The substring between *{{* and *}}* is a template variable. In the above example, there're two variables, *domain* and *question*. When you run the application, you can set different values for these variables to make a dynamic template.
+
+```
+LLM.RUN app-with-prompt-template --LLM llm --VARS '{"domain" : "LLM", "question" : "Please give an introduction on LLM."}'
+```
+
+With *--VARS* option, we set values for each variable. The option is in JSON format, and each key-value pair in JSON string corresponds to a variable. *redis-llm* renders the above template into a prompt: *You are an expert on LLM. Please answer the following question: Please give an introduction on LLM.*, and ask LLM for completion.
+
+### Vector Store
+
+### Application
+
 ## Commands
 
 ### LLM.CREATE
+
+*LLM.CREATE* is used to create a LLM model, vector store or application.
 
 #### Syntax
 
