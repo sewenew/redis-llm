@@ -1,5 +1,7 @@
 # redis-llm
 
+[中文文档](https://github.com/sewenew/redis-llm/blob/main/Chinese.md)
+
 - [Overview](#overview)
     - [Features](#features)
 - [Installation](#installation)
@@ -11,13 +13,17 @@
     - [C++ Client](#c-client)
     - [Python Client](#python-client)
 - [Terminology](#terminology)
+    - [LLM](#llm)
+    - [Prompt](#prompt)
+    - [Vector Store](#vector-store)
+    - [Application](#application)
 - [Commands](#commands)
     - [Path](#path)
 - [Author](#author)
 
 ## Overview
 
-This is a [Redis Module](https://redis.io/topics/modules-intro) that integrates LLM (Large Language Model) with Redis.
+*redis-llm* is a [Redis Module](https://redis.io/topics/modules-intro) that integrates LLM (Large Language Model) with Redis.
 
 LLM is powerful, but it’s still limited.
 
@@ -49,7 +55,13 @@ After running the Docker image, you can go to the [Getting Started section](#get
 
 ### Install redis-protobuf With Source Code
 
-You can also install redis-llm with source code.
+You can also install *redis-llm* with source code.
+
+*redis-llm* depends on curl and openssl, and you need to install these dependencies first.
+
+```
+apt-get install libssl-dev libcurl4-openssl-dev
+```
 
 *redis-llm* is built with [CMAKE](https://cmake.org).
 
@@ -206,11 +218,23 @@ The substring between *{{* and *}}* is a template variable. In the above example
 LLM.RUN app-with-prompt-template --LLM llm --VARS '{"domain" : "LLM", "question" : "Please give an introduction on LLM."}'
 ```
 
-With *--VARS* option, we set values for each variable. The option is in JSON format, and each key-value pair in JSON string corresponds to a variable. *redis-llm* renders the above template into a prompt: *You are an expert on LLM. Please answer the following question: Please give an introduction on LLM.*, and ask LLM for completion.
+With *--VARS* option, we set values for each variable. The option is in JSON format, and each key-value pair in JSON string corresponds to a variable. *redis-llm* renders the above template into the following prompt, and ask LLM for completion.
+
+```
+You are an expert on LLM. Please answer the following question: Please give an introduction on LLM.
+```
 
 ### Vector Store
 
+Vector store is a database that store data with their embeddings, i.e. vector. Embedding can capture semantics of the data, and data with similar embeddings are semantically similar. Normally, we use Approximate Nearest Neighbor (ANN) algorithms to search the K approximatly nearest items of a given input.
+
+There are many ANN algorithms, and currently, we support the following ones:
+
+- [HNSW](https://github.com/nmslib/hnswlib)
+
 ### Application
+
+
 
 ## Commands
 
