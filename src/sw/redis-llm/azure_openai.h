@@ -64,7 +64,9 @@ private:
     auto _parse_http_options(const nlohmann::json &conf) const
         -> std::pair<HttpClientOptions, HttpClientPoolOptions>;
 
-    nlohmann::json _construct_msg(const std::string_view &input) const;
+    nlohmann::json _construct_msg(const std::string_view &input,
+            std::string system_msg = "",
+            nlohmann::json recent_history = {}) const;
 
     nlohmann::json _query(const std::string &path, const nlohmann::json &input);
 

@@ -25,6 +25,8 @@ uint64_t VectorStore::add(uint64_t id, const std::string_view &data, const Vecto
         throw Error("invalid embedding: size is 0");
     }
 
+    std::lock_guard<std::mutex> lock(_mtx);
+
     if (_dim == 0) {
         // Use the first item's dimension as the dimension of the vector store.
         _dim = embedding.size();
@@ -49,6 +51,8 @@ uint64_t VectorStore::add(const std::string_view &data, const Vector &embedding)
 }
 
 bool VectorStore::rem(uint64_t id) {
+    std::lock_guard<std::mutex> lock(_mtx);
+
     auto iter = _data_store.find(id);
     if (iter == _data_store.end()) {
         return false;
@@ -62,6 +66,8 @@ bool VectorStore::rem(uint64_t id) {
 }
 
 std::optional<Vector> VectorStore::get(uint64_t id) {
+    std::lock_guard<std::mutex> lock(_mtx);
+
     if (_data_store.empty()) {
         return std::nullopt;
     }
@@ -70,6 +76,8 @@ std::optional<Vector> VectorStore::get(uint64_t id) {
 }
 
 std::optional<std::string> VectorStore::data(uint64_t id) {
+    std::lock_guard<std::mutex> lock(_mtx);
+
     auto iter = _data_store.find(id);
     if (iter == _data_store.end()) {
         return std::nullopt;
@@ -79,6 +87,8 @@ std::optional<std::string> VectorStore::data(uint64_t id) {
 }
 
 std::vector<std::pair<uint64_t, float>> VectorStore::knn(const Vector &query, std::size_t k) {
+    std::lock_guard<std::mutex> lock(_mtx);
+
     if (_data_store.empty()) {
         return {};
     }

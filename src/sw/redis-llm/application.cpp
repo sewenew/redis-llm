@@ -16,6 +16,7 @@
 
 #include "sw/redis-llm/application.h"
 #include <cassert>
+#include "sw/redis-llm/chat_application.h"
 #include "sw/redis-llm/errors.h"
 #include "sw/redis-llm/simple_application.h"
 #include "sw/redis-llm/search_application.h"
@@ -29,6 +30,7 @@ Application::Application(const std::string &type,
 ApplicationFactory::ApplicationFactory() {
     _register("app", std::make_unique<ApplicationCreatorTpl<SimpleApplication>>());
     _register("search", std::make_unique<ApplicationCreatorTpl<SearchApplication>>());
+    _register("chat", std::make_unique<ApplicationCreatorTpl<ChatApplication>>());
 }
 
 ApplicationSPtr ApplicationFactory::create(const std::string &type,

@@ -19,6 +19,7 @@
 
 #include <cstdint>
 #include <atomic>
+#include <mutex>
 #include <optional>
 #include <unordered_map>
 #include <utility>
@@ -102,6 +103,8 @@ private:
     LlmInfo _llm;
 
     std::atomic<uint64_t> _id_idx{0};
+
+    std::mutex _mtx;
 };
 
 using VectorStoreSPtr = std::shared_ptr<VectorStore>;

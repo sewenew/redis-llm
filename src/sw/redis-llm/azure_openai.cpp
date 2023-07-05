@@ -54,27 +54,32 @@ std::string AzureOpenAi::predict(const std::string_view &input, const nlohmann::
 }
 
 std::string AzureOpenAi::chat(const std::string_view &input,
-        const std::string &history_summary,
+        const std::string &system_msg,
         const nlohmann::json &recent_history,
         const nlohmann::json &params) {
-    /*
     try {
-        if (_opts.chat.is_null()) {
-            throw Error("no chat conf is specified");
-        }
-
         // Set model and other parameters.
         auto req = _opts.chat;
-        req["messages"] = _construct_msg(input);
+        req["messages"] = _construct_msg(input, system_msg, recent_history);
 
-        auto path = "/openai/deployments/" + 
+        auto path = "/openai/deployments/" + _opts.chat_deployment_id +
+            "/chat/completions?api-version=" + _opts.api_version;
         auto ans = _query(path, req);
 
-        return ans["choices"][0]["message"]["content"].get<std::string>();
+        auto &choices = ans["choices"];
+        if (!choices.is_array() || choices.empty()) {
+            throw Error("invalid chat choices");
+        }
+
+        auto &content = choices[0]["message"]["content"];
+        if (!content.is_string()) {
+            throw Error("invalid chat choices");
+        }
+
+        return content.get<std::string>();
     } catch (const std::exception &e) {
         throw Error(std::string("failed to predict: ") + e.what());
     }
-    */
 
     return "";
 }
@@ -107,16 +112,28 @@ Vector AzureOpenAi::embedding(const std::string_view &input, const nlohmann::jso
     return {};
 }
 
-nlohmann::json AzureOpenAi::_construct_msg(const std::string_view &input) const {
-    auto messages= nlohmann::json::array();
+nlohmann::json AzureOpenAi::_construct_msg(const std::string_view &input,
+        std::string system_info,
+        nlohmann::json recent_history) const {
+    nlohmann::json msgs;
+
+    if (!system_info.empty()) {
+        nlohmann::json system_msg;
+        system_msg["role"] = "system";
+        system_msg["content"] = std::move(system_info);
+        msgs.push_back(std::move(system_msg));
+    }
+
+    for (auto &ele : recent_history) {
+        msgs.push_back(std::move(ele));
+    }
 
     nlohmann::json msg;
     msg["role"] = "user";
     msg["content"] = input;
+    msgs.push_back(std::move(msg));
 
-    messages.push_back(std::move(msg));
-
-    return messages;
+    return msgs;
 }
 
 nlohmann::json AzureOpenAi::_query(const std::string &path, const nlohmann::json &req) {

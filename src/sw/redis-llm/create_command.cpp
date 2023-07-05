@@ -16,6 +16,7 @@
 
 #include "sw/redis-llm/create_command.h"
 #include "sw/redis-llm/create_app_command.h"
+#include "sw/redis-llm/create_chat_command.h"
 #include "sw/redis-llm/create_llm_command.h"
 #include "sw/redis-llm/create_search_command.h"
 #include "sw/redis-llm/create_vector_store_command.h"
@@ -72,6 +73,11 @@ int CreateCommand::_create(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
         module_type = llm.app_type();
         break;
 
+    case SubCmd::CHAT:
+        sub_cmd = std::make_unique<CreateChatCommand>(*key);
+        module_type = llm.app_type();
+        break;
+
     default:
         throw Error("unsupported sub command");
     }
@@ -104,6 +110,8 @@ CreateCommand::SubCmd CreateCommand::_parse_sub_cmd(const std::string_view &opt)
         return SubCmd::APP;
     } else if (util::str_case_equal(opt, "SEARCH")) {
         return SubCmd::SEARCH;
+    } else if (util::str_case_equal(opt, "CHAT")) {
+        return SubCmd::CHAT;
     } else {
         throw Error("unknown sub command");
     }

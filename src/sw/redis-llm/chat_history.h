@@ -18,6 +18,7 @@
 #define SEWENEW_REDIS_LLM_CHAT_HISTORY_H
 
 #include <string>
+#include <string_view>
 #include <vector>
 #include "nlohmann/json.hpp"
 #include "sw/redis-llm/llm_model.h"
@@ -28,11 +29,15 @@
 namespace sw::redis::llm {
 
 struct ChatHistoryOptions {
+    ChatHistoryOptions() = default;
+
+    explicit ChatHistoryOptions(const nlohmann::json &conf);
+
     // Summarize last n messages.
-    int summary_cnt = 0;
+    uint32_t summary_cnt = 0;
 
     // Use the nearest n summaries as context.
-    int summary_ctx_cnt = 1;
+    uint32_t summary_ctx_cnt = 1;
 
     std::string summary_prompt = R"(Give a concise and comprehensive summary of the given conversation (in JSON format). The summary should capture the main points and supporting details.
 Conversation: """
@@ -41,7 +46,7 @@ Conversation: """
 Summary: )";
 
     // Use latest n messages as context.
-    int msg_ctx_cnt = 5;
+    uint32_t msg_ctx_cnt = 5;
 
     std::string ai_role = "assistant";
 
@@ -56,9 +61,9 @@ class ChatHistory {
 public:
     explicit ChatHistory(const ChatHistoryOptions &opts);
 
-    void add(LlmModel &model, std::string role, std::string message);
+    void add(LlmModel &model, const std::string_view &role, const std::string_view &message);
 
-    std::pair<std::string, nlohmann::json> history(LlmModel &model, const std::string &input);
+    std::pair<std::string, nlohmann::json> history(LlmModel &model, const std::string_view &input);
 
 private:
     using Msg = std::pair<std::string, std::string>;
@@ -69,7 +74,7 @@ private:
 
     nlohmann::json _get_latest_msgs();
 
-    std::string _get_history_summary(LlmModel &model, const std::string &input, int k);
+    std::string _get_history_summary(LlmModel &model, const std::string_view &input, int k);
 
     ChatHistoryOptions _opts;
 

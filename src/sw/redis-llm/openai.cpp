@@ -71,7 +71,17 @@ std::string OpenAi::chat(const std::string_view &input,
 
         auto ans = _query(_opts.chat_path, req);
 
-        return ans["choices"][0]["message"]["content"].get<std::string>();
+        auto &choices = ans["choices"];
+        if (!choices.is_array() || choices.empty()) {
+            throw Error("invalid chat choices");
+        }
+
+        auto &content = choices[0]["message"]["content"];
+        if (!content.is_string()) {
+            throw Error("invalid chat choices");
+        }
+
+        return content.get<std::string>();
     } catch (const std::exception &e) {
         throw Error(std::string("failed to predict: ") + e.what());
     }

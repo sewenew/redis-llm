@@ -24,14 +24,14 @@ LLM is powerful, but it’s still limited.
 - It cannot access your private data, and cannot answer questions based on those data.
 - It has token limitation, and cannot remember too much chat history.
 
-In order to make LLM access private data, and remember more history, I wrote redis-llm to integrate LLM with Redis. This module makes Redis an extended memory of LLM. You can save your private data to Redis with redis-llm, and ask LLM to answer questions based on the data. You can also chat with redis-llm, which can save and index your chat history to help LLM chat with a long history.
+In order to solve these problems, I write redis-llm to integrate LLM with Redis. This module makes Redis an extended memory of LLM. You can save your private data to Redis with redis-llm, and ask LLM to answer questions based on the data. You can also chat with redis-llm, which can save and index your chat history to help LLM chat with a long history.
 
 ### Features
 
 - Run LLM applications with prompt template.
 - Vector store.
 - Ask questions on private data saved in vector store.
-- Chat with a long history (this feature will be ready in the near future).
+- Chat with a long history.
 
 ## Installation
 
