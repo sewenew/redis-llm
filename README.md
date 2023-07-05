@@ -234,7 +234,7 @@ There are many ANN algorithms, and currently, we support the following ones:
 
 ### Application
 
-
+With *redis-llm*, you can create LLM applications.
 
 ## Commands
 
@@ -272,11 +272,21 @@ LLM.CREATE LLM key [--NX] [--XX] --TYPE openai --PARAMS '{}'
 LLM.ADD key [--ID id] [--EMBEDDING xxx] data
 ```
 
+Add an item into the vector store stored at *key*. Each item in the vector store has a unique ID, and an embedding.
+
 #### Options
 
-#### Return Value
+- **--ID**: Specify an ID of `uint64_t` type for the data. If ID already exists, overwrite it. Optional.
+- **--EMBEDDING**: Specify embedding for the data. Optional.
+
+If ID is not specified, redis-llm automatically generates an ID for the given data. If embedding is not specified, redis-llm calls LLM of the vector store to get an embedding.
+
+#### Return
+
+- *Integer reply*: ID of the inserted data.
 
 #### Error
+
 
 #### Time Complexity
 

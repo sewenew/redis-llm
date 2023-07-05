@@ -239,3 +239,98 @@ You are an expert on LLM. Please answer the following question: Please give an i
 ### Application
 
 应用。
+
+使用*redis-llm*，你可以构建LLM应用。
+
+## 命令
+
+
+### LLM.ADD
+
+#### 语法
+
+```
+LLM.ADD key [--ID id] [--EMBEDDING xxx] data
+```
+
+#### Options
+
+#### Return Value
+
+#### Error
+
+#### Time Complexity
+
+#### Examples
+
+### LLM.GET
+
+#### Syntax
+
+```
+LLM.GET key id
+```
+
+#### Options
+
+#### Return Value
+
+#### Error
+
+#### Time Complexity
+
+#### Examples
+
+### LLM.REM
+
+#### Syntax
+
+```
+LLM.REM key id
+```
+
+#### Options
+
+#### Return Value
+
+#### Error
+
+#### Time Complexity
+
+#### Examples
+
+### LLM.SIZE
+
+#### Syntax
+
+```
+LLM.SIZE key
+```
+
+#### Options
+
+#### Return Value
+
+#### Error
+
+#### Time Complexity
+
+#### Examples
+
+### LLM.KNN
+
+#### Syntax
+
+```
+LLM.KNN key [--K 10] [--embedding xxx] [query]
+```
+
+#### Options
+
+#### Return Value
+
+#### Error
+
+#### Time Complexity
+
+#### Examples
