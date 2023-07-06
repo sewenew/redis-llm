@@ -153,9 +153,8 @@ nlohmann::json OpenAi::_query(const std::string &path, const nlohmann::json &req
 OpenAi::Options OpenAi::_parse_options(const nlohmann::json &conf) const {
     Options opts;
     try {
-        // {"api_key": "", "uri" : "", "chat": {"chat_path":"", "model": ""}, "embedding": {"embedding_path":"", "model":""}, "http":{"socket_timeout":"5s","connect_timeout":"5s", "enable_certificate_verification":false, "pool" : {"size":3, "wait_timeout":"0s", "connection_lifetime":"0s"}}}
+        // {"api_key": "", "chat": {"chat_path":"", "model": ""}, "embedding": {"embedding_path":"", "model":""}, "http":{"socket_timeout":"5s","connect_timeout":"5s", "enable_certificate_verification":false, "pool" : {"size":3, "wait_timeout":"0s", "connection_lifetime":"0s"}}}
         opts.api_key = conf.at("api_key").get<std::string>();
-        opts.uri = conf.value<std::string>("uri", "");
         opts.chat = conf.value<nlohmann::json>("chat", nlohmann::json{});
         opts.chat_path = conf.value<std::string>("chat_path", "/v1/chat/completions");
         opts.embedding = conf.value<nlohmann::json>("embedding", nlohmann::json{});

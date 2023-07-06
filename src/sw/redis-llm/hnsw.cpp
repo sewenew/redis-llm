@@ -83,7 +83,7 @@ void Hnsw::_lazily_init(std::size_t dim) {
 Hnsw::Options Hnsw::_parse_options(const nlohmann::json &conf) const {
     Options opts;
     try {
-        opts.max_elements = conf.value<std::size_t>("max_elements", 10000);
+        opts.max_elements = conf.value<std::size_t>("max_elements", 100000);
         opts.m = conf.value<std::size_t>("m", 16);
         opts.ef_construction = conf.value<std::size_t>("ef_construction", 200);
     } catch (const nlohmann::json::exception &e) {

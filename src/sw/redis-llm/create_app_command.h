@@ -24,7 +24,7 @@
 
 namespace sw::redis::llm {
 
-// LLM.CREATE-APP key [--NX] [--XX] [--TYPE app] --LLM llm-info [--PARAMS '{}'] [--PROMPT prompt]
+// LLM.CREATE-APP key [--NX] [--XX] --LLM llm-info [--PARAMS '{}'] [--PROMPT prompt]
 class CreateAppCommand : public Command {
 public:
     explicit CreateAppCommand(const std::string &type) : _type(type) {}

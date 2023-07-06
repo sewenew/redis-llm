@@ -42,8 +42,6 @@ private:
     struct Options {
         std::string api_key;
 
-        std::string uri;
-
         nlohmann::json chat;
 
         std::string chat_path;
