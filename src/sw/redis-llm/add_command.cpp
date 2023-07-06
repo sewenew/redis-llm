@@ -155,6 +155,10 @@ AddCommand::Args AddCommand::_parse_args(RedisModuleString **argv, int argc) con
         ++idx;
     }
 
+    if (idx + 1 != argc) {
+        throw WrongArityError();
+    }
+
     args.data = util::to_sv(argv[idx]);
 
     return args;

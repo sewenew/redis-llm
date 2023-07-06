@@ -32,7 +32,7 @@ void RunCommand::_run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) c
 
     auto *model = api::get_value_by_key<LlmModel>(ctx, app->llm().key, llm.llm_type());
     if (model == nullptr) {
-        throw Error("LLM model for vector store does not exist");
+        throw Error("LLM model not exist");
     }
 
     auto application = std::static_pointer_cast<Application>(app->shared_from_this());
@@ -97,6 +97,11 @@ RunCommand::Args RunCommand::_parse_args(RedisModuleString **argv, int argc) con
 
     if (idx < argc) {
         args.input = util::to_sv(argv[idx]);
+        ++idx;
+    }
+
+    if (idx != argc) {
+        throw WrongArityError();
     }
 
     return args;

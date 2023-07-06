@@ -22,7 +22,7 @@ namespace sw::redis::llm {
 ChatApplication::ChatApplication(const LlmInfo &llm,
         const nlohmann::json &conf) :
     Application("chat", llm, conf),
-    _system_prompt(conf.value<std::string>("system_prompt", _default_prompt)),
+    _system_prompt(conf.value<std::string>("prompt", _default_prompt)),
     _chat_history(_create_chat_history(conf.value<nlohmann::json>("history", {}))) {}
 
 std::string ChatApplication::run(RedisModuleBlockedClient *blocked_client, LlmModel &model, const nlohmann::json &context, const std::string_view &input, bool verbose) {

@@ -24,16 +24,17 @@
 
 namespace sw::redis::llm {
 
-// LLM.CREATE VECTOR_STORE key [--NX] [--XX] [--TYPE xxx] [--LLM llm-info] [--PARAMS '{}']
+// LLM.CREATE-VECTOR-STORE key [--NX] [--XX] [--TYPE xxx] [--LLM llm-info] [--PARAMS '{}']
 class CreateVectorStoreCommand : public Command {
-public:
-    explicit CreateVectorStoreCommand(RedisModuleKey &key) : _key(key) {}
-
 private:
     virtual void _run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const override;
 
     struct Args {
-        std::string type;
+        RedisModuleString *key_name = nullptr;
+
+        std::string type = "hnsw";
+
+        api::CreateOption opt = api::CreateOption::NONE;
 
         nlohmann::json params = nlohmann::json::object();
 
@@ -42,7 +43,7 @@ private:
 
     Args _parse_args(RedisModuleString **argv, int argc) const;
 
-    RedisModuleKey &_key;
+    int _create(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const;
 };
 
 }

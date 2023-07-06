@@ -18,29 +18,17 @@
 #define SEWENEW_REDIS_LLM_CREATE_CHAT_COMMAND_H
 
 #include "nlohmann/json.hpp"
-#include "sw/redis-llm/command.h"
-#include "sw/redis-llm/module_api.h"
-#include "sw/redis-llm/utils.h"
+#include "sw/redis-llm/create_app_command.h"
 
 namespace sw::redis::llm {
 
-// LLM.CREATE SEARCH key [--NX] [--XX] --LLM llm-info [--K 10] --VECTOR_STORE xxx [--PROMPT prompt]
-class CreateChatCommand : public Command {
+// LLM.CREATE-CHAT key [--NX] [--XX] --LLM llm-info --HISTORY '{}' --PROMPT ''
+class CreateChatCommand : public CreateAppCommand {
 public:
-    explicit CreateChatCommand(RedisModuleKey &key) : _key(key) {}
+    CreateChatCommand() : CreateAppCommand("chat") {}
 
 private:
-    virtual void _run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const override;
-
-    struct Args {
-        LlmInfo llm;
-
-        nlohmann::json params = nlohmann::json::object();
-    };
-
-    Args _parse_args(RedisModuleString **argv, int argc) const;
-
-    RedisModuleKey &_key;
+    virtual Args _parse_args(RedisModuleString **argv, int argc) const override;
 };
 
 }

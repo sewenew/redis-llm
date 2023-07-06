@@ -15,37 +15,53 @@
  *************************************************************************/
 
 #include "sw/redis-llm/create_chat_command.h"
-#include "sw/redis-llm/redis_llm.h"
 
 namespace sw::redis::llm {
 
-void CreateChatCommand::_run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const {
-    auto args = _parse_args(argv, argc);
-
-    auto &llm = RedisLlm::instance();
-    auto app = llm.create_application("chat", args.llm, args.params);
-    if (RedisModule_ModuleTypeSetValue(&_key, llm.app_type(), app.get()) != REDISMODULE_OK) {
-        llm.unregister_object(app);
-        throw Error("failed to create APP");
-    }
-}
-
 CreateChatCommand::Args CreateChatCommand::_parse_args(RedisModuleString **argv, int argc) const {
+    assert(argv != nullptr);
+
+    if (argc < 2) {
+        throw WrongArityError();
+    }
+
     Args args;
-    auto idx = 0;
+    args.key_name = argv[1];
+
+    auto idx = 2;
     while (idx < argc) {
         auto opt = util::to_sv(argv[idx]);
-        if (util::str_case_equal(opt, "--LLM")) {
+        if (util::str_case_equal(opt, "--NX")) {
+            args.opt = api::CreateOption::NX;
+        } else if (util::str_case_equal(opt, "--XX")) {
+            args.opt = api::CreateOption::XX;
+        } else if (util::str_case_equal(opt, "--LLM")) {
             if (idx + 1 >= argc) {
                 throw Error("syntax error");
             }
             ++idx;
             args.llm = LlmInfo(util::to_sv(argv[idx]));
+        } else if (util::str_case_equal(opt, "--PROMPT")) {
+            if (idx + 1 >= argc) {
+                throw Error("syntax error");
+            }
+            ++idx;
+            args.params["prompt"] = util::to_string(argv[idx]);
+        } else if (util::str_case_equal(opt, "--HISTORY")) {
+            if (idx + 1 >= argc) {
+                throw Error("syntax error");
+            }
+            ++idx;
+            args.params["history"] = util::to_json(argv[idx]);
         } else {
             break;
         }
 
         ++idx;
+    }
+
+    if (idx < argc) {
+        throw WrongArityError();
     }
 
     return args;

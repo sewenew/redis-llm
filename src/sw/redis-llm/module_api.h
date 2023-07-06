@@ -73,6 +73,15 @@ enum class KeyMode {
 
 RedisKey open_key(RedisModuleCtx *ctx, RedisModuleString *name, KeyMode mode);
 
+enum class CreateOption {
+    NX = 0,
+    XX,
+    NONE
+};
+
+RedisKey create_key(RedisModuleCtx *ctx, RedisModuleString *name,
+        RedisModuleType *type, CreateOption opt);
+
 // If key doesn't exist return false.
 // If key type is NOT *key_type*, throw WrongTypeError.
 // Otherwise, return true.
@@ -102,7 +111,7 @@ T* get_value_by_key(RedisModuleCtx *ctx, RedisModuleString *key_name,
         return nullptr;
     }
 
-    auto *value = api::get_value_by_key<T>(*key);
+    auto *value = get_value_by_key<T>(*key);
     assert(value != nullptr);
 
     return value;

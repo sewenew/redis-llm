@@ -46,6 +46,26 @@ RedisKey open_key(RedisModuleCtx *ctx, RedisModuleString *name, KeyMode key_mode
     return RedisKey(static_cast<RedisModuleKey *>(RedisModule_OpenKey(ctx, name, mode)));
 }
 
+RedisKey create_key(RedisModuleCtx *ctx, RedisModuleString *name,
+        RedisModuleType *type, CreateOption opt) {
+    assert(ctx != nullptr && name != nullptr && type != nullptr);
+
+    auto key = open_key(ctx, name, KeyMode::WRITEONLY);
+    assert(key);
+
+    if (key_exists(key.get(), type)) {
+        if (opt == CreateOption::NX) {
+            return nullptr;
+        }
+    } else {
+        if (opt == CreateOption::XX) {
+            return nullptr;
+        }
+    }
+
+    return key;
+}
+
 bool key_exists(RedisModuleKey *key, RedisModuleType *key_type) {
     // key can be nullptr.
     auto type = RedisModule_KeyType(key);

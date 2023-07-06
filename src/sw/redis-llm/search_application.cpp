@@ -23,7 +23,7 @@ SearchApplication::SearchApplication(const LlmInfo &llm,
         const nlohmann::json &conf) :
     Application("search", llm, conf),
     _prompt(conf.value<std::string>("prompt", _default_prompt)),
-    _vector_store(conf.at("vector_store").get<std::string>()),
+    _vector_store(conf.at("vector-store").get<std::string>()),
     _k(conf.at("k").get<std::size_t>()) {}
 
 std::string SearchApplication::run(RedisModuleBlockedClient *blocked_client, LlmModel &model, const nlohmann::json &context, const std::string_view &input, bool verbose) {

@@ -129,6 +129,11 @@ KnnCommand::Args KnnCommand::_parse_args(RedisModuleString **argv, int argc) con
 
     if (idx < argc) {
         args.query = util::to_sv(argv[idx]);
+        ++idx;
+    }
+
+    if (idx != argc) {
+        throw WrongArityError();
     }
 
     return args;

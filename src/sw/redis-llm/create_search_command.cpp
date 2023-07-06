@@ -15,38 +15,38 @@
  *************************************************************************/
 
 #include "sw/redis-llm/create_search_command.h"
-#include "sw/redis-llm/redis_llm.h"
 
 namespace sw::redis::llm {
 
-void CreateSearchCommand::_run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const {
-    auto args = _parse_args(argv, argc);
-
-    auto &llm = RedisLlm::instance();
-    auto app = llm.create_application("search", args.llm, args.params);
-    if (RedisModule_ModuleTypeSetValue(&_key, llm.app_type(), app.get()) != REDISMODULE_OK) {
-        llm.unregister_object(app);
-        throw Error("failed to create APP");
-    }
-}
-
 CreateSearchCommand::Args CreateSearchCommand::_parse_args(RedisModuleString **argv, int argc) const {
+    assert(argv != nullptr);
+
+    if (argc < 2) {
+        throw WrongArityError();
+    }
+
     Args args;
-    auto idx = 0;
+    args.key_name = argv[1];
+
+    auto idx = 2;
     while (idx < argc) {
         auto opt = util::to_sv(argv[idx]);
-        if (util::str_case_equal(opt, "--LLM")) {
+        if (util::str_case_equal(opt, "--NX")) {
+            args.opt = api::CreateOption::NX;
+        } else if (util::str_case_equal(opt, "--XX")) {
+            args.opt = api::CreateOption::XX;
+        } else if (util::str_case_equal(opt, "--LLM")) {
             if (idx + 1 >= argc) {
                 throw Error("syntax error");
             }
             ++idx;
             args.llm = LlmInfo(util::to_sv(argv[idx]));
-        } else if (util::str_case_equal(opt, "--VECTOR_STORE")) {
+        } else if (util::str_case_equal(opt, "--VECTOR-STORE")) {
             if (idx + 1 >= argc) {
                 throw Error("syntax error");
             }
             ++idx;
-            args.params["vector_store"] = util::to_string(argv[idx]);
+            args.params["vector-store"] = util::to_string(argv[idx]);
         } else if (util::str_case_equal(opt, "--PROMPT")) {
             if (idx + 1 >= argc) {
                 throw Error("syntax error");
@@ -70,7 +70,11 @@ CreateSearchCommand::Args CreateSearchCommand::_parse_args(RedisModuleString **a
         ++idx;
     }
 
-    if (args.params.find("vector_store") == args.params.end()) {
+    if (idx < argc) {
+        throw WrongArityError();
+    }
+
+    if (args.params.find("vector-store") == args.params.end()) {
         throw Error("no vector store is specified");
     }
 

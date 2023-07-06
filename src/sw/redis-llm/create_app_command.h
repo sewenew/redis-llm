@@ -24,25 +24,36 @@
 
 namespace sw::redis::llm {
 
-// LLM.CREATE APP key [--NX] [--XX] [--TYPE app] --LLM llm-info [--PARAMS '{}'] [--PROMPT prompt]
+// LLM.CREATE-APP key [--NX] [--XX] [--TYPE app] --LLM llm-info [--PARAMS '{}'] [--PROMPT prompt]
 class CreateAppCommand : public Command {
 public:
-    explicit CreateAppCommand(RedisModuleKey &key) : _key(key) {}
+    explicit CreateAppCommand(const std::string &type) : _type(type) {}
 
-private:
-    virtual void _run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const override;
+    CreateAppCommand() : CreateAppCommand("app") {}
 
+    const std::string& type() const {
+        return _type;
+    }
+
+protected:
     struct Args {
-        std::string type = "app";
+        RedisModuleString *key_name = nullptr;
 
         LlmInfo llm;
+
+        api::CreateOption opt = api::CreateOption::NONE;
 
         nlohmann::json params = nlohmann::json::object();
     };
 
-    Args _parse_args(RedisModuleString **argv, int argc) const;
+private:
+    virtual void _run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const override;
 
-    RedisModuleKey &_key;
+    virtual Args _parse_args(RedisModuleString **argv, int argc) const;
+
+    int _create(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const;
+
+    std::string _type;
 };
 
 }

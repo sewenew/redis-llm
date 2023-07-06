@@ -33,7 +33,7 @@ struct ChatHistoryOptions {
 
     explicit ChatHistoryOptions(const nlohmann::json &conf);
 
-    // Summarize last n messages.
+    // Summarize last n messages. 0 means do not enable summary.
     uint32_t summary_cnt = 0;
 
     // Use the nearest n summaries as context.

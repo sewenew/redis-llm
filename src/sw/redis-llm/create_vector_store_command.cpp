@@ -22,22 +22,50 @@
 namespace sw::redis::llm {
 
 void CreateVectorStoreCommand::_run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const {
+    auto res = _create(ctx, argv, argc);
+
+    RedisModule_ReplyWithLongLong(ctx, res);
+
+    RedisModule_ReplicateVerbatim(ctx);
+}
+
+int CreateVectorStoreCommand::_create(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const {
+    auto &llm = RedisLlm::instance();
+
     auto args = _parse_args(argv, argc);
 
-    auto &llm = RedisLlm::instance();
+    auto key = api::create_key(ctx, args.key_name, llm.app_type(), args.opt);
+    if (!key) {
+        return 0;
+    }
+
     auto store = llm.create_vector_store(args.type, args.params, args.llm);
-    if (RedisModule_ModuleTypeSetValue(&_key, llm.vector_store_type(), store.get()) != REDISMODULE_OK) {
+    if (RedisModule_ModuleTypeSetValue(key.get(), llm.vector_store_type(), store.get()) != REDISMODULE_OK) {
         llm.unregister_object(store);
         throw Error("failed to create vector store");
     }
+
+    return 1;
 }
 
 CreateVectorStoreCommand::Args CreateVectorStoreCommand::_parse_args(RedisModuleString **argv, int argc) const {
+    assert(argv != nullptr);
+
+    if (argc < 2) {
+        throw WrongArityError();
+    }
+
     Args args;
-    auto idx = 0;
+    args.key_name = argv[1];
+
+    auto idx = 2;
     while (idx < argc) {
         auto opt = util::to_sv(argv[idx]);
-        if (util::str_case_equal(opt, "--TYPE")) {
+        if (util::str_case_equal(opt, "--NX")) {
+            args.opt = api::CreateOption::NX;
+        } else if (util::str_case_equal(opt, "--XX")) {
+            args.opt = api::CreateOption::XX;
+        } else if (util::str_case_equal(opt, "--TYPE")) {
             if (idx + 1 >= argc) {
                 throw Error("syntax error");
             }
@@ -62,8 +90,8 @@ CreateVectorStoreCommand::Args CreateVectorStoreCommand::_parse_args(RedisModule
         ++idx;
     }
 
-    if (args.type.empty()) {
-        args.type = "hnsw";
+    if (idx < argc) {
+        throw WrongArityError();
     }
 
     return args;

@@ -18,29 +18,17 @@
 #define SEWENEW_REDIS_LLM_CREATE_SEARCH_COMMAND_H
 
 #include "nlohmann/json.hpp"
-#include "sw/redis-llm/command.h"
-#include "sw/redis-llm/module_api.h"
-#include "sw/redis-llm/utils.h"
+#include "sw/redis-llm/create_app_command.h"
 
 namespace sw::redis::llm {
 
-// LLM.CREATE SEARCH key [--NX] [--XX] --LLM llm-info [--K 10] --VECTOR_STORE xxx [--PROMPT prompt]
-class CreateSearchCommand : public Command {
+// LLM.CREATE SEARCH key [--NX] [--XX] --LLM llm-info --VECTOR-STORE xxx [--K 3] [--PROMPT prompt]
+class CreateSearchCommand : public CreateAppCommand {
 public:
-    explicit CreateSearchCommand(RedisModuleKey &key) : _key(key) {}
+    CreateSearchCommand() : CreateAppCommand("search") {}
 
 private:
-    virtual void _run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const override;
-
-    struct Args {
-        LlmInfo llm;
-
-        nlohmann::json params = nlohmann::json::object();
-    };
-
-    Args _parse_args(RedisModuleString **argv, int argc) const;
-
-    RedisModuleKey &_key;
+    virtual Args _parse_args(RedisModuleString **argv, int argc) const override;
 };
 
 }

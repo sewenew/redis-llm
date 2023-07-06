@@ -23,23 +23,24 @@
 
 namespace sw::redis::llm {
 
-// LLM.CREATE LLM key [--NX] [--XX] --TYPE openai --PARAMS '{}'
+// LLM.CREATE-LLM key [--NX] [--XX] --TYPE openai --PARAMS '{}'
 class CreateLlmCommand : public Command {
-public:
-    explicit CreateLlmCommand(RedisModuleKey &key) : _key(key) {}
-
 private:
     virtual void _run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const override;
 
     struct Args {
+        RedisModuleString *key_name = nullptr;
+
         std::string type = "openai";
+
+        api::CreateOption opt = api::CreateOption::NONE;
 
         nlohmann::json params = nlohmann::json::object();
     };
 
     Args _parse_args(RedisModuleString **argv, int argc) const;
 
-    RedisModuleKey &_key;
+    int _create(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const;
 };
 
 }

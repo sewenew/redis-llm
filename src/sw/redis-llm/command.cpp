@@ -16,7 +16,11 @@
 
 #include "sw/redis-llm/command.h"
 #include "sw/redis-llm/add_command.h"
-#include "sw/redis-llm/create_command.h"
+#include "sw/redis-llm/create_app_command.h"
+#include "sw/redis-llm/create_chat_command.h"
+#include "sw/redis-llm/create_llm_command.h"
+#include "sw/redis-llm/create_search_command.h"
+#include "sw/redis-llm/create_vector_store_command.h"
 #include "sw/redis-llm/errors.h"
 #include "sw/redis-llm/get_command.h"
 #include "sw/redis-llm/knn_command.h"
@@ -44,16 +48,68 @@ namespace cmd {
 
 void create_commands(RedisModuleCtx *ctx) {
     if (RedisModule_CreateCommand(ctx,
-                "LLM.CREATE",
+                "LLM.CREATE-APP",
                 [](RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-                    CreateCommand cmd;
+                    CreateAppCommand cmd;
                     return cmd.run(ctx, argv, argc);
                 },
                 "write deny-oom",
-                2,
-                2,
+                1,
+                1,
                 1) == REDISMODULE_ERR) {
-        throw Error("fail to create LLM.CREATE command");
+        throw Error("fail to create LLM.CREATE-APP command");
+    }
+
+    if (RedisModule_CreateCommand(ctx,
+                "LLM.CREATE-CHAT",
+                [](RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+                    CreateChatCommand cmd;
+                    return cmd.run(ctx, argv, argc);
+                },
+                "write deny-oom",
+                1,
+                1,
+                1) == REDISMODULE_ERR) {
+        throw Error("fail to create LLM.CREATE-CHAT command");
+    }
+
+    if (RedisModule_CreateCommand(ctx,
+                "LLM.CREATE-SEARCH",
+                [](RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+                    CreateSearchCommand cmd;
+                    return cmd.run(ctx, argv, argc);
+                },
+                "write deny-oom",
+                1,
+                1,
+                1) == REDISMODULE_ERR) {
+        throw Error("fail to create LLM.CREATE-SEARCH command");
+    }
+
+    if (RedisModule_CreateCommand(ctx,
+                "LLM.CREATE-LLM",
+                [](RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+                    CreateLlmCommand cmd;
+                    return cmd.run(ctx, argv, argc);
+                },
+                "write deny-oom",
+                1,
+                1,
+                1) == REDISMODULE_ERR) {
+        throw Error("fail to create LLM.CREATE-LLM command");
+    }
+
+    if (RedisModule_CreateCommand(ctx,
+                "LLM.CREATE-VECTOR-STORE",
+                [](RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+                    CreateVectorStoreCommand cmd;
+                    return cmd.run(ctx, argv, argc);
+                },
+                "write deny-oom",
+                1,
+                1,
+                1) == REDISMODULE_ERR) {
+        throw Error("fail to create LLM.CREATE-VECTOR-STORE command");
     }
 
     if (RedisModule_CreateCommand(ctx,

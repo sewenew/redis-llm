@@ -22,22 +22,50 @@
 namespace sw::redis::llm {
 
 void CreateLlmCommand::_run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const {
+    auto res = _create(ctx, argv, argc);
+
+    RedisModule_ReplyWithLongLong(ctx, res);
+
+    RedisModule_ReplicateVerbatim(ctx);
+}
+
+int CreateLlmCommand::_create(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const {
+    auto &llm = RedisLlm::instance();
+
     auto args = _parse_args(argv, argc);
 
-    auto &llm = RedisLlm::instance();
+    auto key = api::create_key(ctx, args.key_name, llm.app_type(), args.opt);
+    if (!key) {
+        return 0;
+    }
+
     auto model = llm.create_llm(args.type, args.params);
-    if (RedisModule_ModuleTypeSetValue(&_key, llm.llm_type(), model.get()) != REDISMODULE_OK) {
+    if (RedisModule_ModuleTypeSetValue(key.get(), llm.llm_type(), model.get()) != REDISMODULE_OK) {
         llm.unregister_object(model);
         throw Error("failed to create LLM model");
     }
+
+    return 1;
 }
 
 CreateLlmCommand::Args CreateLlmCommand::_parse_args(RedisModuleString **argv, int argc) const {
+    assert(argv != nullptr);
+
+    if (argc < 2) {
+        throw WrongArityError();
+    }
+
     Args args;
-    auto idx = 0;
+    args.key_name = argv[1];
+
+    auto idx = 2;
     while (idx < argc) {
         auto opt = util::to_sv(argv[idx]);
-        if (util::str_case_equal(opt, "--TYPE")) {
+        if (util::str_case_equal(opt, "--NX")) {
+            args.opt = api::CreateOption::NX;
+        } else if (util::str_case_equal(opt, "--XX")) {
+            args.opt = api::CreateOption::XX;
+        } else if (util::str_case_equal(opt, "--TYPE")) {
             if (idx + 1 >= argc) {
                 throw Error("syntax error");
             }
@@ -54,6 +82,10 @@ CreateLlmCommand::Args CreateLlmCommand::_parse_args(RedisModuleString **argv, i
         }
 
         ++idx;
+    }
+
+    if (idx < argc) {
+        throw WrongArityError();
     }
 
     return args;

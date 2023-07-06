@@ -83,7 +83,7 @@ std::pair<std::string, nlohmann::json> ChatHistory::history(LlmModel &model, con
     */
 
     std::string summary;
-    if (_opts.summary_ctx_cnt > 0) {
+    if (_opts.summary_cnt > 0 && _opts.summary_ctx_cnt > 0) {
         // TODO: Use the latest N message as input to look up the vector store,
         // so that it can be more semantic.
         summary = _get_history_summary(model, input, _opts.summary_ctx_cnt);
@@ -124,6 +124,11 @@ nlohmann::json ChatHistory::_get_latest_msgs() {
 }
 
 void ChatHistory::_summarize_if_needed(LlmModel &model, const Msg &msg) {
+    if (_opts.summary_cnt == 0) {
+        // Not enabled.
+        return;
+    }
+
     _msgs_to_be_summarize.push_back(msg);
 
     // TODO: also check the token limit.
