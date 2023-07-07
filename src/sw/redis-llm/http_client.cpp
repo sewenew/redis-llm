@@ -196,8 +196,8 @@ HttpClient::Client HttpClient::_make_client() const {
     long socket_timeout_ms = _opts.socket_timeout.count();
     _set_option(client.get(), CURLOPT_TIMEOUT_MS, socket_timeout_ms);
 
-    long verify = _opts.enable_certificate_verification ? 2L : 0L;
-    _set_option(client.get(), CURLOPT_SSL_VERIFYHOST, verify);
+    long verify = _opts.enable_certificate_verification ? 1L : 0L;
+    _set_option(client.get(), CURLOPT_SSL_VERIFYPEER, verify);
 
     if (!_opts.proxy_host.empty()) {
         _set_option(client.get(), CURLOPT_PROXY, _opts.proxy_host.data());

@@ -17,12 +17,14 @@
 #ifndef SEWENEW_REDIS_LLM_CHAT_HISTORY_H
 #define SEWENEW_REDIS_LLM_CHAT_HISTORY_H
 
+#include <tuple>
 #include <string>
 #include <string_view>
 #include <vector>
 #include "nlohmann/json.hpp"
 #include "sw/redis-llm/llm_model.h"
 #include "sw/redis-llm/prompt.h"
+#include "sw/redis-llm/redismodule.h"
 #include "sw/redis-llm/utils.h"
 #include "sw/redis-llm/vector_store.h"
 
@@ -61,20 +63,20 @@ class ChatHistory {
 public:
     explicit ChatHistory(const ChatHistoryOptions &opts);
 
-    void add(LlmModel &model, const std::string_view &role, const std::string_view &message);
+    std::tuple<uint64_t, std::string, Vector> add(LlmModel &model, VectorStore &store, const std::string_view &role, const std::string_view &message);
 
-    std::pair<std::string, nlohmann::json> history(LlmModel &model, const std::string_view &input);
+    std::pair<std::string, nlohmann::json> history(LlmModel &model, VectorStore &store, const std::string_view &input);
 
 private:
     using Msg = std::pair<std::string, std::string>;
 
-    void _summarize_if_needed(LlmModel &model, const Msg &msg);
+    std::tuple<uint64_t, std::string, Vector> _summarize_if_needed(LlmModel &model, VectorStore &store, const Msg &msg);
 
-    void _summarize(LlmModel &model, const std::vector<Msg> &msgs);
+    std::tuple<uint64_t, std::string, Vector> _summarize(LlmModel &model, VectorStore &store, const std::vector<Msg> &msgs);
 
     nlohmann::json _get_latest_msgs();
 
-    std::string _get_history_summary(LlmModel &model, const std::string_view &input, int k);
+    std::string _get_history_summary(LlmModel &model, VectorStore &store, const std::string_view &input, int k);
 
     ChatHistoryOptions _opts;
 
@@ -83,8 +85,6 @@ private:
     std::vector<Msg> _msgs_to_be_summarize;
 
     std::deque<Msg> _latest_msgs;
-
-    VectorStoreSPtr _store;
 };
 
 }

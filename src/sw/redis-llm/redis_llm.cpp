@@ -17,6 +17,7 @@
 #include "sw/redis-llm/redis_llm.h"
 #include <cassert>
 #include <string>
+#include <string_view>
 #include "sw/redis-llm/command.h"
 #include "sw/redis-llm/errors.h"
 #include "sw/redis-llm/module_api.h"
@@ -233,9 +234,8 @@ void RedisLlm::_aof_rewrite_llm(RedisModuleIO *aof, RedisModuleString *key, void
         }
 
         RedisModule_EmitAOF(aof,
-                "LLM.CREATE",
-                "cscbcb",
-                "LLM",
+                "LLM.CREATE-LLM",
+                "scbcb",
                 key,
                 "--TYPE",
                 type.data(),
@@ -306,9 +306,8 @@ void RedisLlm::_aof_rewrite_vector_store(RedisModuleIO *aof, RedisModuleString *
         }
 
         RedisModule_EmitAOF(aof,
-                "LLM.CREATE",
-                "cscbcb",
-                "VECTOR_STORE",
+                "LLM.CREATE-VECTOR-STORE",
+                "scbcb",
                 key,
                 "--TYPE",
                 type.data(),
@@ -382,9 +381,8 @@ void RedisLlm::_aof_rewrite_app(RedisModuleIO *aof, RedisModuleString *key, void
         }
 
         RedisModule_EmitAOF(aof,
-                "LLM.CREATE",
-                "cscbcbcb",
-                "APP",
+                "LLM.CREATE-APP",
+                "scbcbcb",
                 key,
                 "--TYPE",
                 type.data(),

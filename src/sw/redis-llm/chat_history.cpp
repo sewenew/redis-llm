@@ -57,22 +57,22 @@ ChatHistoryOptions::ChatHistoryOptions(const nlohmann::json &conf) {
 }
 
 ChatHistory::ChatHistory(const ChatHistoryOptions &opts) :
-    _opts(opts), _summary_prompt(_opts.summary_prompt) {
-    _store = RedisLlm::instance().create_vector_store(_opts.store_type, _opts.store_params, _opts.llm);
-}
+    _opts(opts), _summary_prompt(_opts.summary_prompt) {}
 
-void ChatHistory::add(LlmModel &model, const std::string_view &role, const std::string_view &message) {
+std::tuple<uint64_t, std::string, Vector> ChatHistory::add(LlmModel &model, VectorStore &store, const std::string_view &role, const std::string_view &message) {
     auto msg = Msg(role, message);
 
-    _summarize_if_needed(model, msg);
+    auto res = _summarize_if_needed(model, store, msg);
 
     _latest_msgs.push_back(std::move(msg));
     while (_latest_msgs.size() > _opts.msg_ctx_cnt) {
         _latest_msgs.pop_front();
     }
+
+    return res;
 }
 
-std::pair<std::string, nlohmann::json> ChatHistory::history(LlmModel &model, const std::string_view &input) {
+std::pair<std::string, nlohmann::json> ChatHistory::history(LlmModel &model, VectorStore &store, const std::string_view &input) {
     auto latest_msgs = _get_latest_msgs();
 
     /*
@@ -86,18 +86,18 @@ std::pair<std::string, nlohmann::json> ChatHistory::history(LlmModel &model, con
     if (_opts.summary_cnt > 0 && _opts.summary_ctx_cnt > 0) {
         // TODO: Use the latest N message as input to look up the vector store,
         // so that it can be more semantic.
-        summary = _get_history_summary(model, input, _opts.summary_ctx_cnt);
+        summary = _get_history_summary(model, store, input, _opts.summary_ctx_cnt);
     }
 
     return std::make_pair(std::move(summary), std::move(latest_msgs));
 }
 
-std::string ChatHistory::_get_history_summary(LlmModel &model, const std::string_view &input, int k) {
+std::string ChatHistory::_get_history_summary(LlmModel &model, VectorStore &store, const std::string_view &input, int k) {
     auto embedding = model.embedding(input, _opts.llm.params);
-    auto neighbors = _store->knn(embedding, k);
+    auto neighbors = store.knn(embedding, k);
     std::string res;
     for (auto [id, dist] : neighbors) {
-        auto val = _store->data(id);
+        auto val = store.data(id);
         if (!val) {
             continue;
         }
@@ -123,23 +123,26 @@ nlohmann::json ChatHistory::_get_latest_msgs() {
     return msgs;
 }
 
-void ChatHistory::_summarize_if_needed(LlmModel &model, const Msg &msg) {
+std::tuple<uint64_t, std::string, Vector> ChatHistory::_summarize_if_needed(LlmModel &model, VectorStore &store, const Msg &msg) {
     if (_opts.summary_cnt == 0) {
         // Not enabled.
-        return;
+        return std::make_tuple(0, std::string(""), Vector{});
     }
 
     _msgs_to_be_summarize.push_back(msg);
 
     // TODO: also check the token limit.
+    std::tuple<uint64_t, std::string, Vector> res;
     if (_msgs_to_be_summarize.size() >= _opts.summary_cnt) {
-        _summarize(model, _msgs_to_be_summarize);
+        res = _summarize(model, store, _msgs_to_be_summarize);
 
         _msgs_to_be_summarize.clear();
     }
+
+    return res;
 }
 
-void ChatHistory::_summarize(LlmModel &model, const std::vector<Msg> &msgs) {
+std::tuple<uint64_t, std::string, Vector> ChatHistory::_summarize(LlmModel &model, VectorStore &store, const std::vector<Msg> &msgs) {
     std::string request;
     try {
         nlohmann::json conversation;
@@ -163,7 +166,9 @@ void ChatHistory::_summarize(LlmModel &model, const std::vector<Msg> &msgs) {
 
     auto embedding = model.embedding(output, _opts.llm.params);
 
-    _store->add(output, embedding);
+    auto id = store.add(output, embedding);
+
+    return std::make_tuple(id, output, embedding);
 }
 
 }

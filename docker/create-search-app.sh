@@ -31,8 +31,8 @@ openai_key=$4
 openai_api_key=$5
 search_key=$6
 
-$redis_cli llm.create llm "$openai_key" --params "{\"api_key\":\"$openai_api_key\"}"
-$redis_cli llm.create vector_store "$store_key" --llm "$openai_key"
+$redis_cli llm.create-llm "$openai_key" --params "{\"api_key\":\"$openai_api_key\"}"
+$redis_cli llm.create-vector-store "$store_key" --llm "$openai_key"
 
 while read line; do
     key=$(echo "$line" | cut -f1)
@@ -41,4 +41,4 @@ while read line; do
     cat $path | $redis_cli -x llm.add "$store_key" --embedding "$embedding"
 done <"$embedding_file"
 
-$redis_cli llm.create search "$search_key" --llm "$openai_key" --vector_store "$store_key"
+$redis_cli llm.create-search "$search_key" --llm "$openai_key" --vector-store "$store_key"

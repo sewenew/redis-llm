@@ -53,11 +53,21 @@ CreateChatCommand::Args CreateChatCommand::_parse_args(RedisModuleString **argv,
             }
             ++idx;
             args.params["history"] = util::to_json(argv[idx]);
+        } else if (util::str_case_equal(opt, "--VECTOR-STORE")) {
+            if (idx + 1 >= argc) {
+                throw Error("syntax error");
+            }
+            ++idx;
+            args.params["vector-store"] = util::to_string(argv[idx]);
         } else {
             break;
         }
 
         ++idx;
+    }
+
+    if (args.params.find("vector-store") == args.params.end()) {
+        throw Error("no vector-store is specified");
     }
 
     if (idx < argc) {

@@ -34,7 +34,7 @@ int CreateLlmCommand::_create(RedisModuleCtx *ctx, RedisModuleString **argv, int
 
     auto args = _parse_args(argv, argc);
 
-    auto key = api::create_key(ctx, args.key_name, llm.app_type(), args.opt);
+    auto key = api::create_key(ctx, args.key_name, llm.llm_type(), args.opt);
     if (!key) {
         return 0;
     }

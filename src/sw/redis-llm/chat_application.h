@@ -35,6 +35,8 @@ public:
 private:
     ChatHistory _create_chat_history(const nlohmann::json &conf) const;
 
+    VectorStore& _get_vector_store(RedisModuleCtx *ctx, const nlohmann::json &context);
+
     Prompt _system_prompt;
 
     inline static const std::string _default_prompt = R"(You are a friendly chatbot. The following is a summary of parts of your chat history with user: """
@@ -42,6 +44,8 @@ private:
 """)";
 
     ChatHistory _chat_history;
+
+    std::string _vector_store;
 
     std::mutex _mtx;
 };
