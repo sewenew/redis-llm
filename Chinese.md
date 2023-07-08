@@ -18,7 +18,16 @@
     - [Vector Store](#vector-store)
     - [Application](#application)
 - [命令](#命令)
-    - [Path](#path)
+    - [LLM.CREATE-LLM](#llmcreate-llm)
+    - [LLM.CREATE-VECTOR-STORE](#llmcreate-vector-store)
+    - [LLM.CREATE-APP](#llmcreate-app)
+    - [LLM.CREATE-SEARCH](#llmcreate-search)
+    - [LLM.CREATE-CHAT](#llmcreate-chat)
+    - [LLM.ADD](#llmadd)
+    - [LLM.GET](#llmget)
+    - [LLM.REM](#llmrem)
+    - [LLM.SIZE](#llmsize)
+    - [LLM.KNN](#llmknn)
 - [作者](#作者)
 
 ## 概览
@@ -244,97 +253,605 @@ You are an expert on LLM. Please answer the following question: Please give an i
 
 ## 命令
 
+命令名字和选项名字大小写不敏感。
+
 ### LLM.CREATE-LLM
+
+#### 语法
+
+```
+LLM.CREATE-LLM key [--NX] [--XX] [--TYPE model-type] --PARAMS '{model parameters in JSON format}'
+```
+
+**LLM.CREATE-LLM** 创建一个LLM模型，并保存到*key*中。所有的应用（application）都需要使用LLM，因此在创建应用前，你需要先创建好LLM模型。
+
+#### 选项
+
+- **--NX**: 当且仅当*key*不存在时，创建模型。可选。
+- **--XX**: 当且仅当*key*存在时，创建模型。可选。
+- **--TYPE**: 模型类型。可选。如果没有设置，默认类型为openai。
+- **--PARAMS**: JSON格式的模型参数。详情请查看[LLM模型章节](#LLM模型)。
+
+#### LLM模型
+
+##### openai
+
+如果你要使用OpenAI，那么可以直接模型类型为`--TYPE openai`，其模型参数如下：
+
+```JSON
+{"api_key": "required", "chat_path": "/v1/chat/completions", "chat": {"model": "gpt-3.5-turbo"}, "embedding_path": "/v1/embeddings", "embedding": {"model":"text-embedding-ada-002"}, "http":{"socket_timeout":"5s","connect_timeout":"5s", "enable_certificate_verification":false, "proxy_host": "", "proxy_port": 0, "pool" : {"size": 5, "wait_timeout":"0s", "connection_lifetime":"0s"}}}
+```
+
+以上参数都是键值对，必须字段用*required*标识，可选字段则给出了默认值。如果没有设置，那么会使用给定的默认直。例如，要使用*gpt-3.5-turbo-0301*模型，其它参数使用默认值，那么可以进行如下设置：
+
+```
+LLM.CREATE-LLM key --PARAMS '{"api_key" : "sk-your-api-key", "chat": {"model": "gpt-3.5-turbo-0301"}}'
+```
+
+如果你想为chat或者embedding API设置OpenAI的[其它参数](https://platform.openai.com/docs/api-reference/chat/create)，那么可以把这些参数设置到*chat*参数里。以下例子为chat API设置了*api_key*和*temperature*参数:
+
+```
+LLM.CREATE-LLM key --PARAMS '{"api_key" : "sk-your-api-key", "chat": {"temperature": 0.5}}'
+```
+
+##### azure openai
+
+如果你想使用Azure OpenAI，那么可以设置模型类型为`--TYPE azure_openai`，其模型参数如下：
+
+```JSON
+{"api_key": "required", "resource_name" : "required", "chat_deployment_id": "required", "embedding_deployment_id": "required", "api_version": "required", "chat": {}, "embedding": {}, "http": {"socket_timeout":"5s", "connect_timeout":"5s", "enable_certificate_verification": false, "proxy_host": "", "proxy_port": 0, "pool" : {"size": 5, "wait_timeout":"0s", "connection_lifetime":"0s"}}}
+```
+
+所有的参数都是键值对，必选字段标识为了*required*，可选字段给出了默认值。如果没有设置，那么就使用默认值。例如，如果你想要设置超时时间（*socket_time*）为10秒，其它使用默认值，那么可以如下设置：
+
+```
+LLM.CREATE-LLM key --TYPE azure_openai --PARAMS '{"api_key" : "sk-your-api-key", "resource_name": "your-resource_name", "chat_deployment_id": "your-chat_deployment_id", "embedding_deployment_id": "your-embedding_deployment_id", "api_version" : "api-version", "http": {"socket_timeout" : "10s"}}'
+```
+
+如果你想要为chat或者embedding API设置[其它参数](https://learn.microsoft.com/en-us/azure/cognitive-services/openai/reference)，那么可以把它们设置到*chat*字段。以下例子设置了*temperature*参数：
+
+```
+LLM.CREATE-LLM key --TYPE azure_openai --PARAMS '{"api_key" : "sk-your-api-key", "resource_name": "your-resource_name", "chat_deployment_id": "your-chat_deployment_id", "embedding_deployment_id": "your-embedding_deployment_id", "api_version" : "api-version", "chat": {"temperature" : 0.5}}'
+```
+
+#### 返回值
+
+- *Integer reply*: 如果模型创建成功，那么返回1，否则返回0（例如设置了*--NX*选项，但key已经存在了）。
+
+#### 错误
+
+以下情况会返回错误：
+
+- 模型类型不支持。
+- 不能用给定的参数创建模型。
+- 存储在*key*处的数据不是LLM模型。
+
+#### 示例
+
+```
+// 创建一个openai类型的LLM模型，设置api key，其它参数使用默认值
+LLM.CREATE-LLM key --TYPE openai --PARAMS '{"api_key": "Your API KEY"}'
+
+// 创建一个openai类型的LLM模型，设置api key，chat API的模型使用gpt-3.5-turbo-0301
+LLM.CREATE-LLM key --TYPE openai --PARAMS '{"api_key": "Your API KEY", "chat" : {"model" : "gpt-3.5-turbo-0301"}}'
+
+// 创建一个azure openai类型的LLM模型，设置必须参数
+LLM.CREATE-LLM key --TYPE azure_openai --PARAMS '{"api_key": "Your API KEY", "resource_name": "your resource name", "chat_deployment_id": "your deployment id for chat api", "embedding_deployment_id": "your deployment id for embedding api", "api_version": "api version"}'
+
+// 创建一个azure openai类型的LLM模型，设置必须参数，设置http代理
+LLM.CREATE-LLM key --TYPE azure_openai --PARAMS '{"api_key": "Your API KEY", "resource_name": "your resource name", "chat_deployment_id": "your deployment id for chat api", "embedding_deployment_id": "your deployment id for embedding api", "api_version": "api version", "http": {"proxy_host": "http://xxx.xxx.xx", "proxy_port": 3149}}'
+```
+
+### LLM.CREATE-VECTOR-STORE
+
+#### 语法
+
+```
+LLM.CREATE-VECTOR-STORE key [--NX] [--XX] [--TYPE vector-store-type] [--LLM llm-info] [--PARAMS '{store parameters in JSON format}']
+```
+
+**LLM.CREATE-VECTOR-STORE**创建一个vector store，并保存在*key*处。如果你想让LLM应用访问你的私有数据，你需要先创建一个vector store。
+
+#### 选项
+
+- **--NX**: 当且仅当*key*不存在时，创建vector store。可选。
+- **--XX**: 当且仅当*key*存在时，创建模型。可选。
+- **--TYPE**: vector store的类型。可选。如果没有指定，那么默认使用*hnsw*类型。
+- **--LLM**: vector store使用的LLM模型存储在Redis中的key。如果使用LLM.ADD命令的时候没有指定embedding，那么redis-llm会使用该LLM模型生成embedding，然后再存储到vector store中。
+- **--PARAMS**: JSON格式的vector store参数。详情请查看[vector store章节](#vector-stores)。可选。
+
+#### Vector Stores
+
+##### hnsw
+
+目前我们只支持HNSW类型，这也是默认类型。当然，你也可以显式的通过`--TYPE hnsw`指定。它的参数如下：
+
+```JSON
+{"max_elements": 100000, "m": 16, "ef_construction": 200, "dim": 0}
+```
+
+所有的参数都是键值对。必选参数使用*required*标识，可选参数给出了默认值。
+
+- *max_elements*: vector store能存储的最大数量。
+- *dim*: vector store存储的embedding的维度。如果使用默认值，0，那么使用第一条插入到vector store的embedding的维度作为vector store的维度。
+
+#### 返回值
+
+- *Integer reply*: 如果创建vector store成功，返回1，否则返回0（例如设置了*--NX*选项，但key已经存在了）。
+
+#### 错误
+
+以下情况会返回错误：
+
+- vector store的类型不支持。
+- 无法使用给定的参数创建vector store。
+- 存储在*key*处的数据不是vector store类型。
+
+#### 示例
+
+以下示例创建一个带LLM支持的vector store，即：指定了--LLM选项。你可以在插入数据的时如果没有指定数据的embedding，那么redis-llm会使用指定的LLM自动生成数据的embedding，然后插入。详情请查看[LLM.ADD命令](#llmadd-command)。
+
+```
+// 创建一个默认类型（hnsw）的vector store
+LLM.CREATE-VECTOR-STORE key --LLM llm-key
+
+// 显式指定vector store的类型为hnsw
+LLM.CREATE-VECTOR-STORE key --TYPE hnsw --LLM llm-key
+
+// 创建vector store，并指定一些参数
+LLM.CREATE-VECTOR-STORE key --LLM llm-key --PARAMS '{"max_elements": 20000}'
+```
+
+在某些场景下，我们已经获取了数据的embedding，不再需要通过LLM模型生成了。这种情况下，在创建的时候，不需要指定--LLM参数。
+
+```
+// 创建一个默认类型的vector store，没有指定--LLM参数
+LLM.CREATE-VECTOR-STORE key
+
+// 创建一个vector store，并显式指定类型
+LLM.CREATE-VECTOR-STORE key --TYPE hnsw
+
+// 创建一个默认类型的vector store，设置一些参数
+LLM.CREATE-VECTOR-STORE key --PARAMS '{"max_elements": 20000}'
+```
+
+### LLM.CREATE-APP
+
+#### 语法
+
+```
+LLM.CREATE-APP key [--NX] [--XX] --LLM llm-key [--PROMPT prompt]
+```
+
+**LLM.CREATE-APP**创建一个简单应用（*simple application*），并保存到*key*处。你也可以为该应用指定一个prompt或者prompt模版。
+
+#### 选项
+
+- **--NX**: 当且仅当*key*不存在时，创建应用。可选。
+- **--XX**: 当且仅当*key*存在时，创建应用。可选。
+- **--LLM**: 应用使用的LLM模型在Redis中的key。
+- **--PROMPT**: 应用的prompt或prompt模版，详情请查看[Prompt章节](#prompt)。
+
+#### 返回值
+
+- *Integer reply*: 如果应用创建成功，那么返回1，否则返回0（例如设置了*--NX*选项，但key已经存在了）。
+
+#### 错误
+
+以下情况会返回错误：
+
+- 选项不正确。
+- 存储在*key*处的数据不是应用。
+
+#### 示例
+
+```
+// 创建一个不带prompt的应用
+LLM.CREATE-APP key --LLM model-key
+
+// 用给定的输入来运行
+LLM.RUN key 'I want you to act as a poet. Please write a poet about love.'
+
+// 使用硬编码的prompt来创建应用
+LLM.CREATE-APP key --LLM model-key --PROMPT 'I want you to act as a poet. Please write a poet about love.'
+
+// 运行该应用
+LLM.RUN key
+
+// 使用prompt模版来创建应用
+LLM.CREATE-APP key --LLM model-key --PROMPT 'I want you to act as a poet. Please write a poet about {{domain}}.'
+
+// 在运行时指定模版变量的值
+LLM.RUN key --VARS '{"domain": "love"}'
+```
+
+### LLM.CREATE-SEARCH
+
+#### 语法
+
+```
+LLM.CREATE-SEARCH key [--NX] [--XX] --LLM llm-key --VECTOR-STORE store-key [--K 3] [--PROMPT prompt]
+```
+
+**LLM.CREATE-SEARCH**创建一个*search application*，并保存在*key*处。该应用使用保存在*llm-key*处的LLM模型，对保存在*store-key*处的vector store中的数据进行检索。
+
+#### 选项
+
+- **--NX**: 当且仅当*key*不存在时，创建应用。可选。
+- **--XX**: 当且仅当*key*不存在时，创建应用。可选。
+- **--LLM**: 应用使用的LLM模型在Redis中的key。
+- **--VECTOR-STORE**: 应用使用的vector store在Redis中的key。
+- **--K**: 使用vector store中和输入最相近的K个数据作为检索的上下文。可选。如果没有指定，那么默认设置为3。K越大，通常检索的准确度越高，但是用的token数越多。
+- **--PROMPT**: 该应用的Prompt模版
+
+**注意**:
+
+该prompt模版需要包含两个变量：*context*和*question*。当我们运行该应用时，会使用vector store中找到的相似数据做为*{{context}}*，用户的输入问题作为*{{question}}*。以下是默认模版：
+
+```
+Please answer the following question based on the given context.
+Context: """
+{{context}}
+"""
+Question: """
+{{question}}
+"""
+Answer:
+```
+
+#### 返回值
+
+- *Integer reply*: 如果应用创建成功，那么返回1，否则返回0（例如设置了*--NX*选项，但key已经存在了）。
+
+#### 错误
+
+以下情况会返回错误：
+
+- 选项不正确。
+- 存储在*key*处的数据不是应用。
+
+#### 示例
+
+```
+// 创建一个search应用
+LLM.CREATE-SEARCH key --LLM model-key --VECTOR-STORE store-key
+
+// 给定输入，运行该应用
+LLM.RUN key 'Question on your private data.'
+
+// 创建一个search应用，指定更多的相似数据（--K 5）作为检索的上下文
+LLM.CREATE-SEARCH key --LLM model-key --VECTOR-STORE store-key --K 5
+
+// 运行该应用
+LLM.RUN key 'Question on your private data.'
+```
+
+### LLM.CREATE-CHAT
+
+#### 语法
+
+```
+LLM.CREATE-CHAT key [--NX] [--XX] --LLM llm-key --VECTOR-STORE store-key [--HISTORY {history conf in JSON format}] [--PROMPT prompt]
+```
+
+**LLM.CREATE-CHAT**创建一个*chat application*，并保存在*key*处。该应用使用保存在*llm-key*处的模型来和你对话，并把你们的聊天记录保存在*store-key*处的vector store中。
+
+#### Options
+
+- **--NX**: 当且仅当*key*不存在时，创建应用。可选。
+- **--XX**: 当且仅当*key*存在时，创建应用。可选。
+- **--LLM**: 应用使用的LLM模型在Redis中的key。
+- **--VECTOR-STORE**: 应用使用的vector store在Redis中的key。
+- **--HISTORY**: 聊天历史配置。可选。
+- **--PROMPT**: 应用的prompt或prompt模版。可选。
+
+**注意**:
+
+该prompt模版包含了1个变量：*history*。当运行该应用时，*{{history}}*会被设置为和当前用户输入相关的聊天历史。以下是默认模版：
+
+```
+You are a friendly chatbot. The following is a summary of parts of your chat history with user: """
+{{history}}
+"""
+```
+
+以下是聊天历史的配置，同时给出了每个配置的默认值（这些默认值以后可能会修改）：
+
+```
+{"summary_cnt": 0, "summary_ctx_cnt": 1, "summary_prompt" : "Give a concise and comprehensive summary of the given conversation (in JSON format). The summary should capture the main points and supporting details.\nConversation: \"\"\"\n{{conversation}}\n\"\"\"\nSummary:", "msg_ctx_cnt": 10}
+```
+
+Chat application会对你最近的*summary_cnt*条消息进行总结，并将总结写入到vector store中。当你发送一条消息时，它会从vector store中检索*summary_ctx_cnt*条最相关的总结作为你和LLM模型聊天的历史记录。然后chat应用会将这个聊天历史（长期记忆）和最近的*msg_ctx_cnt*条消息（短期记忆）作为你们聊天上下文，结合当前的消息一起发送给LLM模型。通过这种方式LLM模型就能“记住”你们的聊天历史了。
+
+如果*summary_cnt*使用默认值，0，那么chat应用不会对你的聊天历史进行总结，也不会使用该总结作为聊天上下文。
+
+#### 返回值
+
+- *Integer reply*: 如果应用创建成功，那么返回1，否则返回0（例如设置了*--NX*选项，但key已经存在了）。
+
+#### 错误
+
+以下情况会返回错误：
+
+- 选项不正确。
+- 存储在*key*处的数据不是应用。
+
+#### 示例
+
+```
+// 创建一个chat应用
+LLM.CREATE-CHAT key --LLM model-key --VECTOR-STORE store-key
+
+// 跟该应用对话
+LLM.RUN key 'How are you?'
+
+// 创建一个chat应用，并让应用对最近的20条记录进行总结
+LLM.CREATE-SEARCH key --LLM model-key --VECTOR-STORE store-key --HISTORY '{"summary_cnt": 20}'
+```
 
 ### LLM.ADD
 
 #### 语法
 
 ```
-LLM.ADD key [--ID id] [--EMBEDDING xxx] data
+LLM.ADD key [--ID id] [--EMBEDDING xxx] [--TIMEOUT in-milliseconds] data
 ```
 
-#### Options
+**LLM.ADD**向存储在*key*处的vector store中写入一条数据。每条数据包含一个唯一的ID和embedding。
 
-#### Return Value
+#### 选项
 
-#### Error
+- **--ID**: 指定插入数据的ID（`uint64_t`类型）。如果ID已经存在了，那么覆盖它。可选。如果没有设置，redis-llm会自动生成一个ID。
+- **--EMBEDDING**: 指定插入数据的embedding。可选。如果没有设置，那么redis-llm会调用LLM模型来生成一个embedding。
+- **--TIMEOUT**: 客户端等待该操作的超时时间（毫秒）。可选。如果没有设置，那么默认是0，客户端会一直阻塞等待操作完成。
 
-#### Time Complexity
+**注意**：如果超时时间到了，你无法知道该操作是否完成。
 
-#### Examples
+#### 返回值
+
+- *Integer reply*: 插入数据的ID。
+- *Nil reply*: 如果等待超时，返回nil。
+
+#### 错误
+
+以下情况会返回错误：
+
+- *key*不存在。你需要在调用LLM.ADD之前调用LLM.CREATE-VECTOR-STORE
+- 存储在*key*处的数据不是一个vector store
+- vector store的大小达到了设置的*max_elements*限制
+- vector store在创建的时候，没有指定*--LLM*选项，但执行LLM.ADD的时候没有指定*--EMBEDDING*。
+- 使用LLM创建embedding失败。
+- 显式指定的embedding的维度和vector store的维度不匹配。
+
+#### 示例
+
+以下使用创建了一个vector store，没有指定LLM，插入的时候，显式指定ID和embedding。
+
+```
+// 创建vector store，不指定LLM
+LLM.CREATE-VECTOR-STORE store
+
+// 插入一条记录，显式指定ID和embedding。由于是第一条插入的数据，因此，vecotr store
+// 使用该数据的embedding的维度作为vector store的维度
+LLM.ADD store --ID 1 --EMBEDDING 1,2,3 'some data'
+
+// 以下插入会失败，因为维度不匹配
+LLM.ADD store --ID 2 --EMBEDDING 1,2 'some other data'
+
+// 以下插入会成功
+LLM.ADD store --ID 2 --EMBEDDING 1,2,5 'some other data'
+```
+
+以下示例在创建vector store时指定了LLM，系统可以通过LLM来自动创建embedding。
+
+```
+// 使用保存在*model-key*处的LLM来创建一个vector store
+LLM.CREATE-VECTOR-STORE store --LLM model-key
+
+// 添加一条数据，使用LLM模型自动生成embedding，同时自动生成该数据的ID
+LLM.ADD store 'some data'
+
+// 添加一条数据，等待2秒钟，如果超时就提前返回
+LLM.ADD store --TIMEOUT 2000 'some other data'
+```
 
 ### LLM.GET
 
-#### Syntax
+#### 语法
 
 ```
 LLM.GET key id
 ```
 
-#### Options
+**LLM.GET**从保存在*key*处的vector store中返回给定ID的数据和embedding。
 
-#### Return Value
+#### 返回值
 
-#### Error
+- **Array reply**: 2维数组。第一个元素是数据，第二个元素是embedding。
+- **Nil reply**: 如果*key*或者*id*不存在，返回nil。
 
-#### Time Complexity
+#### 错误
 
-#### Examples
+以下情况会返回错误：
+
+- 存储在*key*处的数据不是vector store。
+
+#### 示例
+
+```
+LLM.CREATE-VECTOR-STORE store
+
+LLM.ADD store --ID 1 --EMBEDDING 1,2,3 'some data'
+
+// 以下命令返回'some data'和1,2,3
+LLM.GET store 1
+```
 
 ### LLM.REM
 
-#### Syntax
+#### 语法
 
 ```
 LLM.REM key id
 ```
 
-#### Options
+**LLM.REM**从vector store中删除给定ID的数据。
 
-#### Return Value
+#### 返回值
 
-#### Error
+- *Integer reply*: 如果数据存在并且删除成功了，那么返回1，否则返回0。
 
-#### Time Complexity
+#### 错误
 
-#### Examples
+以下情况会返回错误：
+
+- 存储在*key*处的数据不是vector store
+
+#### 示例
+
+```
+LLM.CREATE-VECTOR-STORE store
+
+LLM.ADD store --ID 1 --EMBEDDING 1,2,3 'some data'
+
+LLM.REM store 1
+```
 
 ### LLM.SIZE
 
-#### Syntax
+#### 语法
 
 ```
 LLM.SIZE key
 ```
 
-#### Options
+**LLM.SIZE**返回存储在*key*处的vector store的大小。
 
-#### Return Value
+#### 返回值
 
-#### Error
+- *Integer reply*: vector store的大小。如果不存在，那么返回0。
 
-#### Time Complexity
+#### 错误
 
-#### Examples
+以下情况会返回错误：
+
+- 存储在*key*处的数据不是vector store
+
+#### 示例
+
+```
+LLM.CREATE-VECTOR-STORE store
+
+LLM.ADD store --ID 1 --EMBEDDING 1,2,3 'some data'
+
+LLM.SIZE store
+```
 
 ### LLM.KNN
 
-#### Syntax
+#### 语法
 
 ```
-LLM.KNN key [--K 10] [--embedding xxx] [query]
+LLM.KNN key [--K 10] [--EMBEDDING xxx] [--TIMEOUT timeout-in-milliseconds] [query]
 ```
 
-#### Options
+**LLM.KNN**返回与给定embedding或者query最相似的K条数据。
 
-#### Return Value
+#### 选项
 
-#### Error
+**--K**: 返回的条数。可选。默认返回10条。
+**--EMBEDDING**: 用于检索的embedding。可选。如果指定了，那么会从vector store中找出与该embedding最相似的K条记录。
+- **--TIMEOUT**: 客户端等待该操作的超时时间（毫秒）。可选。如果没有设置，那么默认是0，客户端会一直阻塞等待操作完成。
+**query**: 要查询的数据。可选。如果指定了，那么会利用LLM模型生成embedding，然后找出与其最相似的K条记录。
 
-#### Time Complexity
+**注意**:
+- 如果vector store的大小比K小，那么返回的条数小于K。
+- *--EMBEDDING*和*query*都是可选的，但两者必须指定一个。
 
-#### Examples
+#### 返回值
+
+- *Array reply*: 最多K条记录的ID和与输入embedding/query的距离。
+
+#### 错误
+
+以下情况会返回错误：
+
+- *key*处保存的数据不是vector store
+- *key*不存在
+
+#### 示例
+
+以下例子在插入时显式指定embedding，通过指定embedding来查询KNN。
+
+```
+LLM.CREATE-VECTOR-STORE store
+
+LLM.ADD store --EMBEDDING 1,2,3 data1
+
+LLM.ADD store --EMBEDDING 1,2,4 data2
+
+LLM.ADD store --EMBEDDING 1,2,5 data3
+
+LLM.KNN store --K 1 --EMBEDDING 1,2,3
+```
+
+以下例子让vector store自动生成embedding，通过给定query来查询KNN。
+
+```
+LLM.CREATE-VECTOR-STORE store --LLM model-key
+
+LLM.ADD store data1
+
+LLM.ADD store data2
+
+LLM.ADD store data3
+
+LLM.KNN store --K 2 data4
+```
+
+### LLM.RUN
+
+#### 语法
+
+```
+LLM.RUN key [--VARS '{"variable" : "value"}'] [input]
+```
+
+**LLM.RUN**运行一个应用（simple application, search application or chat application)。
+
+#### 选项
+
+- **--VARS**: 如果应用指定了prompt模版，那么可以通过该选项来指定模版中变量的值。可选。
+
+#### 返回值
+
+- *Bulk string reply*: 应用的返回值。
+
+#### 错误
+
+以下情况会返回错误：
+
+- 存储在*key*处的数据不是一个应用。
+- 运行应用失败。
+
+#### 示例
+
+```
+// 运行一个simple application
+LLM.CREATE-APP translator --LLM llm-key --PROMPT 'Please translate the following text to Chinese: '
+
+LLM.RUN translator 'What is LLM?'
+
+// 运行一个search application.
+LLM.CREATE-SEARCH searcher --LLM llm-key --VECTOR-STORE store-key
+
+LLM.RUN searcher 'What is redis-plus-plus?'
+
+// 运行一个chat application.
+LLM.CREATE-CHAT chat --LLM llm-key --VECTOR-STORE store-key
+
+LLM.RUN chat 'What is Redis?'
+```
 
 ## 作者
 
