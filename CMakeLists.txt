@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.1)
 
-set(REDIS_LLM_VERSION "0.0.1")
+set(REDIS_LLM_VERSION "0.1.0")
 message(STATUS "redis-llm version: ${REDIS_LLM_VERSION}")
 
 project(redis-llm LANGUAGES CXX VERSION ${REDIS_LLM_VERSION})
