@@ -109,7 +109,9 @@ After [loading the module](#load-redis-llm), you can use any Redis client to sen
 
 ### redis-cli
 
-The following examples use the offical Redis client, i.e. *redis-cli*, to send redis-llm commands.
+The following examples use the offical Redis client, i.e. redis-cli, to send redis-llm commands.
+
+**NOTE**: If you send command with non-English, you should launch redis-cli with *--raw* option: `redis-cli --raw`.
 
 List module info:
 
@@ -238,9 +240,9 @@ With redis-llm, you can create LLM applications.
 
 Currently, we support the following applications:
 
-- Simple Application: Application with a prompt or prompt template. You can run the application with an input string (prompt), and it returns an output string (completion). Check [LLM.CREATE-APP command](#llmcreate-app) for detail.
-- Search Application: Application which can answer questions on a given vector store (you can store your private data in the vector store). Check [LLM.CREATE-SEARCH command](#llmcreate-search) for detail.
-- Chat Application: Application which helps you chat with LLM. Chat Application indexes the chat history, and helps LLM remember your conversation history. Check [LLM.CREATE-CHAT command](#llmcreate-chat) for detail.
+- **Simple Application**: Application with a prompt or prompt template. You can run the application with an input string (prompt), and it returns an output string (completion). Check [LLM.CREATE-APP command](#llmcreate-app) for detail.
+- **Search Application**: Application which can answer questions on a given vector store (you can store your private data in the vector store). Check [LLM.CREATE-SEARCH command](#llmcreate-search) for detail.
+- **Chat Application**: Application which helps you chat with LLM. Chat Application indexes the chat history, and helps LLM remember your conversation history. Check [LLM.CREATE-CHAT command](#llmcreate-chat) for detail.
 
 ## Commands
 

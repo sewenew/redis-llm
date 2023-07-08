@@ -111,6 +111,8 @@ Module 'LLM' loaded from /path/to/libredis-llm.so
 
 以下示例使用官方的Redis客户端：redis-cli，发送命令。
 
+**注意**：如果你发送的命令包含非英文，请在启动redis-cli的时候，使用--raw选项：`redis-cli --raw`。
+
 列出模块信息:
 
 ```
@@ -236,9 +238,9 @@ You are an expert on LLM. Please answer the following question: Please give an i
 
 目前我们支持以下应用：
 
-- Simple Application: 基于一个Prompt或者Prompt模版构建的简单应用。你可以向它输入一个字符串（prompt），它会输出一个字符串（completion）。查看[LLM.CREATE-APP命令](#llmcreate-app)获取更详细的说明。
-- Search Application: 你可以事先向一个vector store存储私有数据，然后通过Search Application对私有数据进行查询。查看[LLM.CREATE-SEARCH命令](#llmcreate-search)获取更详细的说明。
-- Chat Application: 你可以使用该应用来跟LLM聊天，它会索引你们之间的聊天记录，进而帮助LLM记住你们之间的谈话。查看[LLM.CREATE-CHAT命令](#llmcreate-chat)获取更详细的说明。
+- **Simple Application**: 基于一个Prompt或者Prompt模版构建的简单应用。你可以向它输入一个字符串（prompt），它会输出一个字符串（completion）。查看[LLM.CREATE-APP命令](#llmcreate-app)获取更详细的说明。
+- **Search Application**: 你可以事先向一个vector store存储私有数据，然后通过Search Application对私有数据进行查询。查看[LLM.CREATE-SEARCH命令](#llmcreate-search)获取更详细的说明。
+- **Chat Application**: 你可以使用该应用来跟LLM聊天，它会索引你们之间的聊天记录，进而帮助LLM记住你们之间的谈话。查看[LLM.CREATE-CHAT命令](#llmcreate-chat)获取更详细的说明。
 
 ## 命令
 
