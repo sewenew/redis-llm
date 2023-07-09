@@ -20,19 +20,19 @@ redis_cli=redis-cli
 
 if [ $# != 6 ]
 then
-    echo "Usage: create-search-app.sh embedding-file data-path store-key openai-key openai-api-key search-key"
+    echo "Usage: create-search-app.sh embedding-file data-path store-key llm-key openai-api-key search-key"
     exit -1
 fi
 
 embedding_file=$1
 data_path=$2
 store_key=$3
-openai_key=$4
+llm_key=$4
 openai_api_key=$5
 search_key=$6
 
-$redis_cli llm.create-llm "$openai_key" --params "{\"api_key\":\"$openai_api_key\"}"
-$redis_cli llm.create-vector-store "$store_key" --llm "$openai_key"
+$redis_cli llm.create-llm "$llm_key" --params "{\"api_key\":\"$openai_api_key\"}"
+$redis_cli llm.create-vector-store "$store_key" --llm "$llm_key"
 
 while read line; do
     key=$(echo "$line" | cut -f1)
@@ -41,4 +41,4 @@ while read line; do
     cat $path | $redis_cli -x llm.add "$store_key" --embedding "$embedding"
 done <"$embedding_file"
 
-$redis_cli llm.create-search "$search_key" --llm "$openai_key" --vector-store "$store_key"
+$redis_cli llm.create-search "$search_key" --llm "$llm_key" --vector-store "$store_key"

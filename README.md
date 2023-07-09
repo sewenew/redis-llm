@@ -15,7 +15,7 @@
 - [Terminology](#terminology)
     - [LLM](#llm)
     - [Prompt](#prompt)
-    - [Vector Store](#vector-store-2)
+    - [Vector Store](#vector-store-1)
     - [Application](#application)
 - [Commands](#commands)
     - [LLM.CREATE-LLM](#llmcreate-llm)
@@ -211,7 +211,7 @@ Create a *hello world* application with LLM and prompt template (You must call L
 
 #### Search Application
 
-Create a search application which can answer questions based on data stored in the vector store.
+Create a search application which can answer questions based on your private data stored in the vector store.
 
 - Call LLM.CREATE-LLM to create an LLM model.
 - Call LLM.CREATE-VECTOR-STORE to create a vector store with LLM support.
@@ -231,6 +231,8 @@ Create a search application which can answer questions based on data stored in t
 127.0.0.1:6379> LLM.RUN search-private-data 'who is the author of redis-llm'
 "The author of redis-llm is sewenew."
 ```
+
+Check [this](https://github.com/sewenew/redis-llm/tree/main/examples/search-application) for examples on building a private data searcher on Redis commands and redis-plus-plus.
 
 #### Chat Application
 

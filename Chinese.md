@@ -211,7 +211,7 @@ Module 'LLM' loaded from /path/to/libredis-llm.so
 
 #### Search Application
 
-创建一个search（查询）应用，让它基于vector store中保存的数据来回答问题。
+创建一个search（查询）应用，让它基于vector store中保存的私有数据来回答问题。
 
 - 调用LLM.CREATE-LLM创建一个LLM模型
 - 调用LLM.CREATE-VECTOR-STORE创建一个带LLM支持的vector store
@@ -231,6 +231,8 @@ Module 'LLM' loaded from /path/to/libredis-llm.so
 127.0.0.1:6379> LLM.RUN search-private-data 'who is the author of redis-llm'
 "The author of redis-llm is sewenew."
 ```
+
+[这里](https://github.com/sewenew/redis-llm/tree/main/examples/search-application)包含了基于Redis命令文档和redis-plus-plus文档构建私有数据检索的例子。
 
 #### Chat Application
 
