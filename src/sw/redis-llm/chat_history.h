@@ -35,8 +35,8 @@ struct ChatHistoryOptions {
 
     explicit ChatHistoryOptions(const nlohmann::json &conf);
 
-    // Summarize last n messages. 0 means do not enable summary.
-    uint32_t summary_cnt = 0;
+    // Summarize every n messages. 0 means do not enable summary.
+    uint32_t summary_cnt = 20;
 
     // Use the nearest n summaries as context.
     uint32_t summary_ctx_cnt = 1;
@@ -48,7 +48,7 @@ Conversation: """
 Summary: )";
 
     // Use latest n messages as context.
-    uint32_t msg_ctx_cnt = 5;
+    uint32_t msg_ctx_cnt = 10;
 
     std::string ai_role = "assistant";
 

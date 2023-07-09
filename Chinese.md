@@ -643,12 +643,12 @@ You are a friendly chatbot. The following is a summary of parts of your chat his
 以下是聊天历史的配置，同时给出了每个配置的默认值（这些默认值以后可能会修改）：
 
 ```
-{"summary_cnt": 0, "summary_ctx_cnt": 1, "summary_prompt" : "Give a concise and comprehensive summary of the given conversation (in JSON format). The summary should capture the main points and supporting details.\nConversation: \"\"\"\n{{conversation}}\n\"\"\"\nSummary:", "msg_ctx_cnt": 10}
+{"summary_cnt": 20, "summary_ctx_cnt": 1, "summary_prompt" : "Give a concise and comprehensive summary of the given conversation (in JSON format). The summary should capture the main points and supporting details.\nConversation: \"\"\"\n{{conversation}}\n\"\"\"\nSummary:", "msg_ctx_cnt": 10}
 ```
 
 Chat application会对你最近的*summary_cnt*条消息进行总结，并将总结写入到vector store中。当你发送一条消息时，它会从vector store中检索*summary_ctx_cnt*条最相关的总结作为你和LLM模型聊天的历史记录。然后chat应用会将这个聊天历史（长期记忆）和最近的*msg_ctx_cnt*条消息（短期记忆）作为你们聊天上下文，结合当前的消息一起发送给LLM模型。通过这种方式LLM模型就能“记住”你们的聊天历史了。
 
-如果*summary_cnt*使用默认值，0，那么chat应用不会对你的聊天历史进行总结，也不会使用该总结作为聊天上下文。
+如果*summary_cnt*设置为0，那么chat应用不会对你的聊天历史进行总结，也不会使用该总结作为聊天上下文。一次对话中，使用越多的历史总结，越多的最近消息记录，聊天的体验会越好（LLM可能知道越多的聊天上下文），但token开销也会越大。
 
 #### 返回值
 

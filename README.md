@@ -645,12 +645,12 @@ You are a friendly chatbot. The following is a summary of parts of your chat his
 The following is the history configuration and related default values (these default values might be changed in the future):
 
 ```
-{"summary_cnt": 0, "summary_ctx_cnt": 1, "summary_prompt" : "Give a concise and comprehensive summary of the given conversation (in JSON format). The summary should capture the main points and supporting details.\nConversation: \"\"\"\n{{conversation}}\n\"\"\"\nSummary:", "msg_ctx_cnt": 10}
+{"summary_cnt": 20, "summary_ctx_cnt": 1, "summary_prompt" : "Give a concise and comprehensive summary of the given conversation (in JSON format). The summary should capture the main points and supporting details.\nConversation: \"\"\"\n{{conversation}}\n\"\"\"\nSummary:", "msg_ctx_cnt": 10}
 ```
 
 Chat application summarize your latest *summary_cnt* messages, and store it into the vector store. When you send a message, it searches *summary_ctx_cnt* nearest summaries from the vector store as your conversation history. Finally, it uses both the conversation history (long term) and latest *msg_ctx_cnt* messages (short term) as context, and send your input message to LLM for completion. In this way, LLM can "remember" your conversation history.
 
-If *summary_cnt* is 0, i.e. the default value, chat application does not summarize your conversation, and does not use long term history as context.
+If *summary_cnt* is 0, chat application does not summarize your conversation, and does not use long term history as context. The more history summaries, the more latest messages, the better conversation experience (LLM knows more conversation context), but the more cost.
 
 #### Return
 
