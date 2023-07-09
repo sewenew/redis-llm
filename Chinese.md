@@ -112,6 +112,17 @@ redis-server /path/to/redis.conf
 Module 'LLM' loaded from /path/to/libredis-llm.so
 ```
 
+#### 模块参数
+
+redis-llm使用一个线程池来运行一些高耗时的任务。它会首先把这些任务提交的一个队列中，线程池中的工作线程会从队列中取出任务来执行。你可以在加载模块的时候使用以下选项来设置队列大小和线程池的大小：
+
+- **--QUEUE_SIZE**：任务队列大小。可选。默认1000。
+- **--POOL_SIZE**：线程池大小。可选。默认10。
+
+```
+loadmodule /path/to/libredis-llm.so --QUEUE_SIZE 3000 --POOL_SIZE 20
+```
+
 ## 快速开始
 
 完成[模块加载](#加载redis-llm)后，你就可以使用任何Redis客户端向Redis发送[redis-llm命令](#命令)了。

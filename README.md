@@ -112,6 +112,17 @@ If Redis loads the module successfully, you can get the following message from t
 Module 'LLM' loaded from /path/to/libredis-llm.so
 ```
 
+#### Module Options
+
+redis-llm uses a thread pool to do time-consuming jobs. These jobs are submitted to a task queue, and threads in the pool fetch tasks to run. You can set the queue size (number of tasks) and pool size (number of threads) with the following options when loading redis-llm module:
+
+- **--QUEUE_SIZE**: Size of the task queue. Optional. The default size is 1000.
+- **--POOL_SIZE**: Size of the thread pool. Optional. The default size is 10.
+
+```
+loadmodule /path/to/libredis-llm.so --QUEUE_SIZE 3000 --POOL_SIZE 20
+```
+
 ## Getting Started
 
 After [loading the module](#load-redis-llm), you can use any Redis client to send redis-llm [commands](#Commands).
