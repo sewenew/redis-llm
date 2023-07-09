@@ -15,7 +15,7 @@
 - [术语](#术语)
     - [LLM](#llm)
     - [Prompt](#prompt)
-    - [Vector Store](#vector-store)
+    - [Vector Store](#vector-store-2)
     - [Application](#application)
 - [命令](#命令)
     - [LLM.CREATE-LLM](#llmcreate-llm)
@@ -43,10 +43,10 @@ redis是一个[Redis模块](https://redis.io/topics/modules-intro)，它将大�
 
 ### 功能
 
-- 利用Prompt（提示词）来构建大语言模型应用
-- 向量存储
-- 针对私有数据进行提问
-- 让大语言模型记住几乎所有的聊天记录
+- [利用Prompt（提示词）来构建大语言模型应用](#simple-application)
+- [向量数据库](#vector-store)
+- [针对私有数据进行提问](#search-application)
+- [让大语言模型记住几乎所有的聊天记录](#chat-application)
 
 ## 安装
 
@@ -132,14 +132,75 @@ Module 'LLM' loaded from /path/to/libredis-llm.so
    4) (integer) 1
 ```
 
-创建一个OpenAI类型的大语言模型。
+用OpenAI API key创建一个OpenAI类型的大语言模型。
 
 ```
-127.0.0.1:6379> LLM.CREATE-LLM openai --params '{"api_key" : "$OPENAI_API_KEY"}'
+127.0.0.1:6379> LLM.CREATE-LLM model --TYPE openai --PARAMS '{"api_key" : "$OPENAI_API_KEY"}'
 (integer) 1
 ```
 
-使用一个LLM和一段prompt创建一个*hello world*应用，并运行这个应用。
+#### Vector Store
+
+创建一个不带LLM支持的vector store。对于这类vector store，在插入数据时，需要显式指定数据的embedding。
+
+```
+127.0.0.1:6379> LLM.CREATE-VECTOR-STORE store-without-llm-support
+(integer) 1
+127.0.0.1:6379> LLM.ADD store-without-llm-support --ID 1 --EMBEDDING 1.1,2.2,3.3 'some data'
+(integer) 1
+127.0.0.1:6379> LLM.ADD store-without-llm-support --ID 2 --EMBEDDING 2.2,3.3,4.4 'some other data'
+(integer) 2
+127.0.0.1:6379> LLM.SIZE store-without-llm-support
+(integer) 2
+127.0.0.1:6379> LLM.KNN store-without-llm-support --K 1 --EMBEDDING 1,2,3
+1) 1) (integer) 1
+   2) "0.14000000059604645"
+127.0.0.1:6379> LLM.GET store-without-llm-support 1
+1) "some data"
+2) "1.100000,2.200000,3.300000"
+127.0.0.1:6379> LLM.REM store-without-llm-support 1
+(integer) 1
+127.0.0.1:6379> LLM.SIZE store-without-llm-support
+(integer) 1
+```
+
+创建一个带LLM支持的vector store。向其中插入数据时，会自动调用LLM生成插入数据的embedding。
+
+```
+127.0.0.1:6379> LLM.CREATE-LLM model --TYPE openai --PARAMS '{"api_key" : "$OPENAI_API_KEY"}'
+(integer) 1
+127.0.0.1:6379> LLM.CREATE-VECTOR-STORE store --LLM model
+(integer) 1
+127.0.0.1:6379> LLM.ADD store 'redis-llm is a Redis module that integrates LLM (Large Language Model) with Redis'
+(integer) 1
+127.0.0.1:6379> LLM.KNN store 'redis-llm is a Redis module'
+1) 1) (integer) 1
+   2) "0.94000000059604645"
+```
+
+#### Simple Application
+
+使用LLM模型创建一个*hello world*应用，输入一段文字来运行这个应用。
+
+```
+127.0.0.1:6379> LLM.CREATE-LLM model --TYPE openai --PARAMS '{"api_key" : "$OPENAI_API_KEY"}'
+(integer) 1
+127.0.0.1:6379> LLM.CREATE-APP hello-world --LLM model
+(integer) 1
+127.0.0.1:6379> LLM.RUN hello-world 'Say hello to LLM'
+"Hello LLM! It's nice to meet you. How can I assist you today?"
+```
+
+使用一个LLM模型和一段prompt创建一个*hello world*应用（你需要事先调用LLM.CREATE-LLM创建好LLM模型）。
+
+```
+127.0.0.1:6379> LLM.CREATE-APP hello-world --LLM model --PROMPT 'Say hello to LLM'
+(integer) 1
+127.0.0.1:6379> LLM.RUN hello-world
+"Hello LLM! It's nice to meet you. How can I assist you today?"
+```
+
+使用一个LLM模型和一个prompt模版创建一个*hello world*应用（你需要事先调用LLM.CREATE-LLM创建好LLM模型）。在运行该应用时，需要为模版所需的变量赋值。
 
 ```
 127.0.0.1:6379> LLM.CREATE-APP hello-world --LLM openai --PROMPT 'Say hello to {{name}}'
@@ -148,24 +209,46 @@ Module 'LLM' loaded from /path/to/libredis-llm.so
 "Hello LLM! It's nice to meet you. How can I assist you today?"
 ```
 
-创建一个vector store，并往里面添加一段文档。
-
-```
-127.0.0.1:6379> LLM.CREATE-VECTOR-STORE store --LLM openai
-(integer) 1
-127.0.0.1:6379> LLM.ADD store 'redis-llm is a Redis module that integrates LLM (Large Language Model) with Redis'
-(integer) 1
-```
+#### Search Application
 
 创建一个search（查询）应用，让它基于vector store中保存的数据来回答问题。
 
+- 调用LLM.CREATE-LLM创建一个LLM模型
+- 调用LLM.CREATE-VECTOR-STORE创建一个带LLM支持的vector store
+- 调用LLM.ADD将私有数据添加到vector store中
+- 调用LLM.CREATE-SEARCH，用创建好的LLM模型和vector store来创建一个search应用
+- 调用LLM.RUN向该search应用提问
+
 ```
-127.0.0.1:6379> LLM.CREATE-SEARCH search-private-data --LLM openai --VECTOR-STORE store
+127.0.0.1:6379> LLM.CREATE-LLM model --TYPE openai --PARAMS '{"api_key" : "$OPENAI_API_KEY"}'
+(integer) 1
+127.0.0.1:6379> LLM.CREATE-VECTOR-STORE store --LLM model
 (integer) 1
 127.0.0.1:6379> LLM.ADD store 'redis-llm is an open source project written by sewenew'
 (integer) 1
+127.0.0.1:6379> LLM.CREATE-SEARCH search-private-data --LLM model --VECTOR-STORE store
+(integer) 1
 127.0.0.1:6379> LLM.RUN search-private-data 'who is the author of redis-llm'
 "The author of redis-llm is sewenew."
+```
+
+#### Chat Application
+
+创建一个chat（聊天）应用，该应用能帮助LLM记住很长的聊天历史。
+
+- 调用LLM.CREATE-LLM创建一个LLM模型
+- 调用LLM.CREATE-VECTOR-STORE创建一个带LLM支持的vector store。chat应用会把聊天记录索引到该vector store中
+- 调用LLM.CREATE-CHAT，用创建好的LLM模型和vector store来创建一个chat应用
+- 调用LLM.RUN发起聊天
+
+```
+127.0.0.1:6379> LLM.CREATE-LLM model --TYPE openai --PARAMS '{"api_key" : "$OPENAI_API_KEY"}'
+(integer) 1
+127.0.0.1:6379> LLM.CREATE-VECTOR-STORE history --LLM model
+(integer) 1
+127.0.0.1:6379> LLM.CREATE-CHAT chat --LLM model --VECTOR-STORE history
+(integer) 1
+127.0.0.1:6379> LLM.RUN chat 'Can you recommend a C++ Redis client library for me?'
 ```
 
 ### C++客户端

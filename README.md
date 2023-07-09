@@ -15,7 +15,7 @@
 - [Terminology](#terminology)
     - [LLM](#llm)
     - [Prompt](#prompt)
-    - [Vector Store](#vector-store)
+    - [Vector Store](#vector-store-2)
     - [Application](#application)
 - [Commands](#commands)
     - [LLM.CREATE-LLM](#llmcreate-llm)
@@ -43,10 +43,10 @@ In order to solve these problems, I write redis-llm to integrate LLM with Redis.
 
 ### Features
 
-- Run LLM applications with prompt template.
-- Vector store.
-- Ask questions on private data saved in vector store.
-- Chat with a long history.
+- [Run LLM applications with prompt template](#simple-application)
+- [Vector store](#vector-store)
+- [Ask questions on private data saved in vector store](#search-application)
+- [Chat with a long history](#chat-application).
 
 ## Installation
 
@@ -132,40 +132,123 @@ List module info:
    4) (integer) 1
 ```
 
-Create a LLM of OpenAI type.
+Create an LLM model of OpenAI type by specifying your openai API key.
 
 ```
-127.0.0.1:6379> LLM.CREATE-LLM openai --params '{"api_key" : "$OPENAI_API_KEY"}'
+127.0.0.1:6379> LLM.CREATE-LLM model --TYPE openai --PARAMS '{"api_key" : "$OPENAI_API_KEY"}'
 (integer) 1
 ```
 
-Create a *hello world* application with the created LLM and a prompt, and run it.
+#### Vector Store
+
+Create a vector store without LLM support and you need to add data to store with embedding.
 
 ```
-127.0.0.1:6379> LLM.CREATE-APP hello-world --LLM openai --PROMPT 'Say hello to {{name}}'
+127.0.0.1:6379> LLM.CREATE-VECTOR-STORE store-without-llm-support
+(integer) 1
+127.0.0.1:6379> LLM.ADD store-without-llm-support --ID 1 --EMBEDDING 1.1,2.2,3.3 'some data'
+(integer) 1
+127.0.0.1:6379> LLM.ADD store-without-llm-support --ID 2 --EMBEDDING 2.2,3.3,4.4 'some other data'
+(integer) 2
+127.0.0.1:6379> LLM.SIZE store-without-llm-support
+(integer) 2
+127.0.0.1:6379> LLM.KNN store-without-llm-support --K 1 --EMBEDDING 1,2,3
+1) 1) (integer) 1
+   2) "0.14000000059604645"
+127.0.0.1:6379> LLM.GET store-without-llm-support 1
+1) "some data"
+2) "1.100000,2.200000,3.300000"
+127.0.0.1:6379> LLM.REM store-without-llm-support 1
+(integer) 1
+127.0.0.1:6379> LLM.SIZE store-without-llm-support
+(integer) 1
+```
+
+Create a vector store with LLM support, and the store automatically generate embedding with LLM.
+
+```
+127.0.0.1:6379> LLM.CREATE-LLM model --TYPE openai --PARAMS '{"api_key" : "$OPENAI_API_KEY"}'
+(integer) 1
+127.0.0.1:6379> LLM.CREATE-VECTOR-STORE store --LLM model
+(integer) 1
+127.0.0.1:6379> LLM.ADD store 'redis-llm is a Redis module that integrates LLM (Large Language Model) with Redis'
+(integer) 1
+127.0.0.1:6379> LLM.KNN store 'redis-llm is a Redis module'
+1) 1) (integer) 1
+   2) "0.94000000059604645"
+```
+
+#### Simple Application
+
+Create a *hello world* application with LLM, and run it with input.
+
+```
+127.0.0.1:6379> LLM.CREATE-LLM model --TYPE openai --PARAMS '{"api_key" : "$OPENAI_API_KEY"}'
+(integer) 1
+127.0.0.1:6379> LLM.CREATE-APP hello-world --LLM model
+(integer) 1
+127.0.0.1:6379> LLM.RUN hello-world 'Say hello to LLM'
+"Hello LLM! It's nice to meet you. How can I assist you today?"
+```
+
+Create a *hello world* application with LLM and prompt (You must call LLM.CREATE-LLM to create LLM model beforehand).
+
+```
+127.0.0.1:6379> LLM.CREATE-APP hello-world --LLM model --PROMPT 'Say hello to LLM'
+(integer) 1
+127.0.0.1:6379> LLM.RUN hello-world
+"Hello LLM! It's nice to meet you. How can I assist you today?"
+```
+
+Create a *hello world* application with LLM and prompt template (You must call LLM.CREATE-LLM to create LLM model beforehand). Then you can run it by setting template variables.
+
+```
+127.0.0.1:6379> LLM.CREATE-APP hello-world --LLM model --PROMPT 'Say hello to {{name}}'
 (integer) 1
 127.0.0.1:6379> LLM.RUN hello-world --vars '{"name":"LLM"}'
 "Hello LLM! It's nice to meet you. How can I assist you today?"
 ```
 
-Create a vector store, and add doc to it.
+#### Search Application
+
+Create a search application which can answer questions based on data stored in the vector store.
+
+- Call LLM.CREATE-LLM to create an LLM model.
+- Call LLM.CREATE-VECTOR-STORE to create a vector store with LLM support.
+- Call LLM.ADD to add your private data to the store.
+- Call LLM.CREATE-SEARCH to create a search application with LLM and vector store.
+- Call LLM.RUN to ask questions on your private data.
 
 ```
-127.0.0.1:6379> LLM.CREATE-VECTOR-STORE store --LLM openai
+127.0.0.1:6379> LLM.CREATE-LLM model --TYPE openai --PARAMS '{"api_key" : "$OPENAI_API_KEY"}'
 (integer) 1
-127.0.0.1:6379> LLM.ADD store 'redis-llm is a Redis module that integrates LLM (Large Language Model) with Redis'
-(integer) 1
-```
-
-Create a search application which can answer questions based on data saved in the vector store.
-
-```
-127.0.0.1:6379> LLM.CREATE-SEARCH search-private-data --LLM openai --VECTOR-STORE store
+127.0.0.1:6379> LLM.CREATE-VECTOR-STORE store --LLM model
 (integer) 1
 127.0.0.1:6379> LLM.ADD store 'redis-llm is an open source project written by sewenew'
 (integer) 1
+127.0.0.1:6379> LLM.CREATE-SEARCH search-private-data --LLM model --VECTOR-STORE store
+(integer) 1
 127.0.0.1:6379> LLM.RUN search-private-data 'who is the author of redis-llm'
 "The author of redis-llm is sewenew."
+```
+
+#### Chat Application
+
+Create a chat application which help LLM remember a long conversation history.
+
+- Call LLM.CREATE-LLM to create an LLM model.
+- Call LLM.CREATE-VECTOR-STORE to create a vector store with LLM support. Chat application stores conversation history in this vector store.
+- Call LLM.CREATE-CHAT to create a chat application with LLM and vector store.
+- Call LLM.RUN to chat with LLM.
+
+```
+127.0.0.1:6379> LLM.CREATE-LLM model --TYPE openai --PARAMS '{"api_key" : "$OPENAI_API_KEY"}'
+(integer) 1
+127.0.0.1:6379> LLM.CREATE-VECTOR-STORE history --LLM model
+(integer) 1
+127.0.0.1:6379> LLM.CREATE-CHAT chat --LLM model --VECTOR-STORE history
+(integer) 1
+127.0.0.1:6379> LLM.RUN chat 'Can you recommend a C++ Redis client library for me?'
 ```
 
 ### C++ Client
