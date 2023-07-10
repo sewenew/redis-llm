@@ -68,9 +68,9 @@ void RunCommand::_run_impl(RedisModuleBlockedClient *blocked_client,
 }
 
 RunCommand::Args RunCommand::_parse_args(RedisModuleString **argv, int argc) const {
-    assert(argv != 3);
+    assert(argv != nullptr);
 
-    if (argc < 3) {
+    if (argc < 2) {
         throw WrongArityError();
     }
 

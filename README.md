@@ -186,7 +186,7 @@ Create a vector store with LLM support, and the store automatically generate emb
 (integer) 1
 127.0.0.1:6379> LLM.KNN store 'redis-llm is a Redis module'
 1) 1) (integer) 1
-   2) "0.94000000059604645"
+   2) "0.05000000059604645"
 ```
 
 #### Simple Application
