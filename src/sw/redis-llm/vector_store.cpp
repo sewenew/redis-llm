@@ -31,6 +31,8 @@ uint64_t VectorStore::add(uint64_t id, const std::string_view &data, const Vecto
         // Use the first item's dimension as the dimension of the vector store.
         _dim = embedding.size();
 
+        assert(_dim > 0);
+
         _lazily_init(_dim);
     }
 
@@ -98,20 +100,6 @@ std::vector<std::pair<uint64_t, float>> VectorStore::knn(const Vector &query, st
 
 uint64_t VectorStore::_auto_gen_id() {
     return ++_id_idx;
-}
-
-std::size_t VectorStore::_dimension() const {
-    auto iter = _conf.find("dim");
-    if (iter == _conf.end()) {
-        return 0;
-    }
-
-    const auto &dim = iter.value();
-    if (!dim.is_number_unsigned()) {
-        throw Error("invalid dim");
-    }
-
-    return dim.get<std::size_t>();
 }
 
 VectorStoreFactory::VectorStoreFactory() {

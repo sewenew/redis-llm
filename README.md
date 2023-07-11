@@ -465,13 +465,14 @@ LLM.CREATE-VECTOR-STORE key [--NX] [--XX] [--TYPE vector-store-type] [--LLM llm-
 Currently, we only support vector store of HNSW type, and this is also the default one. Of course, you can specify `--TYPE hnsw` explicitly. The parameters are as follows:
 
 ```JSON
-{"max_elements": 100000, "m": 16, "ef_construction": 200, "dim": 0}
+{"max_elements": 100000, "m": 16, "ef_construction": 200}
 ```
 
 All parameters are key-value pairs. The required ones are set as *required*. The optional ones are set with default values. If parameter is not specified, the default value is used.
 
 - *max_elements*: Max number of items that can be stored in the vector store.
-- *dim*: Set the dimension of the vector saved in vector store. If it's 0, i.e. the default value, the dimension of the first inserted vector is used as the dimension of the vector store.
+
+**NOTE**: The dimension of the first inserted vector is used as the dimension of the vector store.
 
 #### Return
 

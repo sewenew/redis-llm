@@ -64,7 +64,7 @@ void rewrite_vector_store(RedisModuleIO *aof, RedisModuleString *key, VectorStor
 
 void rdb_save_vector_store(RedisModuleIO *rdb, VectorStore &store);
 
-void rdb_load_vector_store(RedisModuleIO *rdb, VectorStore &store);
+void rdb_load_vector_store(RedisModuleIO *rdb, VectorStore &store, std::size_t dim);
 
 void* rdb_load_vector_store(RedisModuleIO *rdb);
 
@@ -502,6 +502,7 @@ void rdb_save_vector_store(RedisModuleIO *rdb, VectorStore &store) {
     rdb_save_config(rdb, store.conf());
     rdb_save_string(rdb, store.llm().to_string());
     rdb_save_number(rdb, store.id_idx());
+    rdb_save_number(rdb, store.dim());
 
     const auto &data_store = store.data_store();
     rdb_save_number(rdb, data_store.size());
@@ -524,8 +525,7 @@ void rdb_save_app(RedisModuleIO *rdb, void *value) {
     rdb_save_config(rdb, app->conf());
 }
 
-void rdb_load_vector_store(RedisModuleIO *rdb, VectorStore &store) {
-    auto dim = store.dim();
+void rdb_load_vector_store(RedisModuleIO *rdb, VectorStore &store, std::size_t dim) {
     auto size = rdb_load_number(rdb);
     for (auto idx = 0UL; idx < size; ++idx) {
         auto id = rdb_load_number(rdb);
@@ -563,11 +563,12 @@ void* rdb_load_vector_store(RedisModuleIO *rdb) {
     auto info_str = rdb_load_string(rdb);
     LlmInfo llm_info(to_sv(info_str));
     auto id_idx = rdb_load_number(rdb);
+    auto dim = rdb_load_number(rdb);
 
     auto store = llm.create_vector_store(type, conf, llm_info);
     store->set_id_idx(id_idx);
 
-    rdb_load_vector_store(rdb, *store);
+    rdb_load_vector_store(rdb, *store, dim);
 
     return store.get();
 }

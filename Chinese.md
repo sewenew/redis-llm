@@ -463,13 +463,14 @@ LLM.CREATE-VECTOR-STORE key [--NX] [--XX] [--TYPE vector-store-type] [--LLM llm-
 目前我们只支持HNSW类型，这也是默认类型。当然，你也可以显式的通过`--TYPE hnsw`指定。它的参数如下：
 
 ```JSON
-{"max_elements": 100000, "m": 16, "ef_construction": 200, "dim": 0}
+{"max_elements": 100000, "m": 16, "ef_construction": 200}
 ```
 
 所有的参数都是键值对。必选参数使用*required*标识，可选参数给出了默认值。
 
 - *max_elements*: vector store能存储的最大数量。
-- *dim*: vector store存储的embedding的维度。如果使用默认值，0，那么使用第一条插入到vector store的embedding的维度作为vector store的维度。
+
+**NOTE**: vector store使用第一条插入到vector store的embedding的维度作为vector store的维度。
 
 #### 返回值
 
