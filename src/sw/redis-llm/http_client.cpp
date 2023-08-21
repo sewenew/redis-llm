@@ -131,7 +131,7 @@ std::string HttpClient::post(const std::string &path,
 
     auto header = _build_header(content_type, headers);
     _set_option(handle, CURLOPT_HTTPHEADER, header.get());
-    _set_option(handle, CURLOPT_HEADEROPT, CURLHEADER_SEPARATE);
+    //_set_option(handle, CURLOPT_HEADEROPT, CURLHEADER_SEPARATE);
 
     std::string uri = _opts.uri + path;
     _set_option(handle, CURLOPT_URL, uri.data());
