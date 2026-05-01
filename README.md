@@ -62,9 +62,9 @@ In this case, Docker runs Redis with a *redis.conf* file located at */usr/lib/re
 
 After running the Docker image, you can go to the [Getting Started section](#getting-started) to see how to run redis-llm commands.
 
-### Install redis-protobuf With Source Code
+### Installing redis-llm from Source Code
 
-You can also install redis-llm with source code.
+You can also install a self-built redis-llm from the source code.
 
 redis-llm depends on curl and openssl, and you need to install these dependencies first.
 
